@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG to JPEG/PNG Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .code-editor {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            tab-size: 2;
+        }
+
+        .drop-zone {
+            transition: all 0.2s ease;
+        }
+
+        .drop-zone.dragover {
+            border-color: #22d3ee;
+            background-color: rgba(34, 211, 238, 0.1);
+            transform: scale(1.01);
+        }
+
+        .checkered-bg {
+            background-image:
+                linear-gradient(45deg, #1e293b 25%, transparent 25%),
+                linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #1e293b 75%),
+                linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+            background-color: #0f172a;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            appearance: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid #475569;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-cyan-950 to-slate-900 text-white">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <div class="inline-flex items-center gap-3 mb-4">
+                <div
+                    class="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center">
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+            </div>
+            <h1
+                class="text-4xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent mb-3">
+                SVG to JPEG/PNG Converter
+            </h1>
+            <p class="text-slate-400 max-w-2xl mx-auto">
+                Convert SVG images to raster formats with custom dimensions, padding, and backgrounds.
+                Paste code, drag files, or load from URL. Your settings are saved in the URL for easy sharing.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <!-- Left Panel: Input -->
+            <div class="space-y-6">
+                <!-- Input Tabs -->
+                <div class="bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-700/50">
+                    <div class="flex border-b border-slate-700">
+                        <button id="tabCode"
+                            class="tab-btn flex-1 py-3 px-4 text-sm font-medium transition-colors bg-slate-700/50 text-cyan-400 border-b-2 border-cyan-400">
+                            Paste Code
+                        </button>
+                        <button id="tabFile"
+                            class="tab-btn flex-1 py-3 px-4 text-sm font-medium transition-colors text-slate-400 hover:text-slate-300">
+                            Upload File
+                        </button>
+                        <button id="tabUrl"
+                            class="tab-btn flex-1 py-3 px-4 text-sm font-medium transition-colors text-slate-400 hover:text-slate-300">
+                            From URL
+                        </button>
+                    </div>
+
+                    <!-- Code Input -->
+                    <div id="panelCode" class="p-4">
+                        <textarea id="svgCodeInput"
+                            class="code-editor w-full h-64 bg-slate-900 border border-slate-600 rounded-xl p-4 text-slate-300 placeholder-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                            placeholder="Paste your SVG code here...
+
+<svg viewBox=&quot;0 0 100 100&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;>
+  <circle cx=&quot;50&quot; cy=&quot;50&quot; r=&quot;40&quot; fill=&quot;#3b82f6&quot;/>
+</svg>"></textarea>
+                        <button id="loadCodeBtn"
+                            class="mt-3 w-full bg-cyan-600 hover:bg-cyan-700 text-white font-medium py-2.5 px-4 rounded-xl transition-colors">
+                            Load SVG
+                        </button>
+                    </div>
+
+                    <!-- File Upload -->
+                    <div id="panelFile" class="p-4 hidden">
+                        <div id="dropZone"
+                            class="drop-zone border-2 border-dashed border-slate-600 rounded-xl p-12 text-center cursor-pointer hover:border-cyan-500 hover:bg-slate-800/30">
+                            <svg class="w-12 h-12 mx-auto text-slate-500 mb-3" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            <p class="text-slate-300 font-medium">Drop SVG file here</p>
+                            <p class="text-slate-500 text-sm mt-1">or click to browse</p>
+                            <input type="file" id="fileInput" accept=".svg,image/svg+xml" class="hidden">
+                        </div>
+                    </div>
+
+                    <!-- URL Input -->
+                    <div id="panelUrl" class="p-4 hidden">
+                        <div class="flex gap-3">
+                            <input type="url" id="urlInput"
+                                class="flex-1 bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-slate-300 placeholder-slate-600 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                placeholder="https://example.com/image.svg">
+                            <button id="loadUrlBtn"
+                                class="bg-cyan-600 hover:bg-cyan-700 text-white font-medium py-3 px-6 rounded-xl transition-colors">
+                                Load
+                            </button>
+                        </div>
+                        <p class="text-slate-500 text-xs mt-3">
+                            Note: The URL must support CORS or be a data URI. Some servers may block cross-origin
+                            requests.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Settings Panel -->
+                <div class="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50">
+                    <h3 class="text-lg font-semibold text-slate-200 mb-4">Output Settings</h3>
+
+                    <div class="grid grid-cols-2 gap-4 mb-5">
+                        <!-- Format -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Format</label>
+                            <select id="formatSelect"
+                                class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent">
+                                <option value="png">PNG (transparent)</option>
+                                <option value="jpeg">JPEG</option>
+                                <option value="webp">WebP</option>
+                            </select>
+                        </div>
+
+                        <!-- Quality (for JPEG/WebP) -->
+                        <div id="qualityContainer">
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Quality</label>
+                            <div class="flex items-center gap-3">
+                                <input type="range" id="qualitySlider" min="10" max="100" value="92"
+                                    class="flex-1 accent-cyan-500">
+                                <span id="qualityValue" class="text-cyan-400 font-mono text-sm w-10">92%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-5">
+                        <!-- Width -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Width (px)</label>
+                            <input type="number" id="widthInput" min="1" max="8192" value="800"
+                                class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent">
+                        </div>
+
+                        <!-- Height -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Height (px)</label>
+                            <input type="number" id="heightInput" min="1" max="8192" value="600"
+                                class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 mb-5">
+                        <input type="checkbox" id="lockRatio" checked
+                            class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500">
+                        <label for="lockRatio" class="text-sm text-slate-400">Lock aspect ratio</label>
+                        <button id="fitToSvg"
+                            class="ml-auto text-xs text-cyan-400 hover:text-cyan-300 transition-colors">
+                            Reset to SVG size
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-5">
+                        <!-- Padding -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Padding (px)</label>
+                            <input type="number" id="paddingInput" min="0" max="500" value="0"
+                                class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent">
+                        </div>
+
+                        <!-- Background Color -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-400 mb-2">Background</label>
+                            <div class="flex items-center gap-2">
+                                <input type="color" id="bgColorPicker" value="#ffffff" class="w-10 h-10 rounded-lg">
+                                <input type="text" id="bgColorInput" value="#ffffff"
+                                    class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent font-mono">
+                                <button id="transparentBtn"
+                                    class="text-xs bg-slate-600 hover:bg-slate-500 px-2 py-2 rounded-lg transition-colors"
+                                    title="Transparent (PNG only)">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="convertBtn"
+                        class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-lg hover:shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Convert SVG
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Panel: Preview & Output -->
+            <div class="space-y-6">
+                <!-- SVG Preview -->
+                <div class="bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-700/50">
+                    <div class="bg-slate-700/50 px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+                        <h3 class="font-medium text-slate-300">SVG Preview</h3>
+                        <span id="svgInfo" class="text-xs text-slate-500">No SVG loaded</span>
+                    </div>
+                    <div id="svgPreview" class="checkered-bg p-6 min-h-[200px] flex items-center justify-center">
+                        <p class="text-slate-600">Load an SVG to preview</p>
+                    </div>
+                </div>
+
+                <!-- Converted Output -->
+                <div class="bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-700/50">
+                    <div class="bg-slate-700/50 px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+                        <h3 class="font-medium text-slate-300">Converted Output</h3>
+                        <span id="outputInfo" class="text-xs text-slate-500">-</span>
+                    </div>
+                    <div id="outputPreview" class="checkered-bg p-6 min-h-[200px] flex items-center justify-center">
+                        <p class="text-slate-600">Convert to see result</p>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="downloadBtn" disabled
+                        class="flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium py-3 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download
+                    </button>
+                    <button id="copyBase64Btn" disabled
+                        class="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                        </svg>
+                        Copy Base64
+                    </button>
+                </div>
+
+                <!-- Base64 Output -->
+                <div class="bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-700/50">
+                    <div class="bg-slate-700/50 px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+                        <h3 class="font-medium text-slate-300">Base64 Data URI</h3>
+                        <button id="toggleBase64Btn"
+                            class="text-sm text-cyan-400 hover:text-cyan-300 transition-colors">
+                            Show
+                        </button>
+                    </div>
+                    <div id="base64Container" class="hidden">
+                        <textarea id="base64Output" readonly
+                            class="code-editor w-full h-32 bg-slate-900 p-4 text-slate-400 resize-none border-0"
+                            placeholder="Convert an image to see the base64 output..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Share Link -->
+                <div class="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        <p class="text-sm text-slate-400 flex-1">Settings are saved in the URL. Copy and share to
+                            preserve your configuration.</p>
+                        <button id="copyUrlBtn"
+                            class="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg transition-colors">
+                            Copy URL
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast"
+            class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span id="toastMessage">Success!</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const tabs = document.querySelectorAll('.tab-btn');
+        const panelCode = document.getElementById('panelCode');
+        const panelFile = document.getElementById('panelFile');
+        const panelUrl = document.getElementById('panelUrl');
+        const svgCodeInput = document.getElementById('svgCodeInput');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const urlInput = document.getElementById('urlInput');
+        const loadCodeBtn = document.getElementById('loadCodeBtn');
+        const loadUrlBtn = document.getElementById('loadUrlBtn');
+        const formatSelect = document.getElementById('formatSelect');
+        const qualityContainer = document.getElementById('qualityContainer');
+        const qualitySlider = document.getElementById('qualitySlider');
+        const qualityValue = document.getElementById('qualityValue');
+        const widthInput = document.getElementById('widthInput');
+        const heightInput = document.getElementById('heightInput');
+        const lockRatio = document.getElementById('lockRatio');
+        const fitToSvg = document.getElementById('fitToSvg');
+        const paddingInput = document.getElementById('paddingInput');
+        const bgColorPicker = document.getElementById('bgColorPicker');
+        const bgColorInput = document.getElementById('bgColorInput');
+        const transparentBtn = document.getElementById('transparentBtn');
+        const convertBtn = document.getElementById('convertBtn');
+        const svgPreview = document.getElementById('svgPreview');
+        const svgInfo = document.getElementById('svgInfo');
+        const outputPreview = document.getElementById('outputPreview');
+        const outputInfo = document.getElementById('outputInfo');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const copyBase64Btn = document.getElementById('copyBase64Btn');
+        const toggleBase64Btn = document.getElementById('toggleBase64Btn');
+        const base64Container = document.getElementById('base64Container');
+        const base64Output = document.getElementById('base64Output');
+        const copyUrlBtn = document.getElementById('copyUrlBtn');
+
+        let currentSvg = null;
+        let svgWidth = 0;
+        let svgHeight = 0;
+        let aspectRatio = 1;
+        let outputDataUrl = '';
+        let isTransparent = false;
+
+        // Tab switching
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => {
+                    t.classList.remove('bg-slate-700/50', 'text-cyan-400', 'border-b-2', 'border-cyan-400');
+                    t.classList.add('text-slate-400');
+                });
+                tab.classList.add('bg-slate-700/50', 'text-cyan-400', 'border-b-2', 'border-cyan-400');
+                tab.classList.remove('text-slate-400');
+
+                panelCode.classList.add('hidden');
+                panelFile.classList.add('hidden');
+                panelUrl.classList.add('hidden');
+
+                if (tab.id === 'tabCode') panelCode.classList.remove('hidden');
+                if (tab.id === 'tabFile') panelFile.classList.remove('hidden');
+                if (tab.id === 'tabUrl') panelUrl.classList.remove('hidden');
+            });
+        });
+
+        // Load SVG from code
+        loadCodeBtn.addEventListener('click', () => {
+            const code = svgCodeInput.value.trim();
+            if (code) loadSvgFromString(code);
+        });
+
+        // Drag and drop
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'image/svg+xml') {
+                loadSvgFromFile(file);
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) loadSvgFromFile(e.target.files[0]);
+        });
+
+        // Load from URL
+        loadUrlBtn.addEventListener('click', () => {
+            const url = urlInput.value.trim();
+            if (url) loadSvgFromUrl(url);
+        });
+
+        function loadSvgFromFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => loadSvgFromString(e.target.result);
+            reader.readAsText(file);
+        }
+
+        async function loadSvgFromUrl(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch');
+                const text = await response.text();
+                loadSvgFromString(text);
+            } catch (e) {
+                showToast('Failed to load SVG from URL', true);
+            }
+        }
+
+        function loadSvgFromString(svgString) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(svgString, 'image/svg+xml');
+            const svg = doc.querySelector('svg');
+
+            if (!svg || doc.querySelector('parsererror')) {
+                showToast('Invalid SVG content', true);
+                return;
+            }
+
+            currentSvg = svgString;
+
+            // Get dimensions
+            let w = svg.getAttribute('width');
+            let h = svg.getAttribute('height');
+            const viewBox = svg.getAttribute('viewBox');
+
+            if (viewBox && (!w || !h)) {
+                const parts = viewBox.split(/[\s,]+/);
+                if (parts.length === 4) {
+                    w = w || parts[2];
+                    h = h || parts[3];
+                }
+            }
+
+            svgWidth = parseFloat(w) || 300;
+            svgHeight = parseFloat(h) || 150;
+            aspectRatio = svgWidth / svgHeight;
+
+            widthInput.value = Math.round(svgWidth);
+            heightInput.value = Math.round(svgHeight);
+
+            // Display preview
+            svgPreview.innerHTML = svgString;
+            const previewSvg = svgPreview.querySelector('svg');
+            if (previewSvg) {
+                previewSvg.style.maxWidth = '100%';
+                previewSvg.style.maxHeight = '300px';
+                previewSvg.style.width = 'auto';
+                previewSvg.style.height = 'auto';
+            }
+
+            svgInfo.textContent = `${Math.round(svgWidth)} × ${Math.round(svgHeight)} px`;
+            convertBtn.disabled = false;
+            updateHash();
+            showToast('SVG loaded successfully');
+        }
+
+        // Format change
+        formatSelect.addEventListener('change', () => {
+            const format = formatSelect.value;
+            if (format === 'png') {
+                qualityContainer.style.opacity = '0.5';
+                qualitySlider.disabled = true;
+            } else {
+                qualityContainer.style.opacity = '1';
+                qualitySlider.disabled = false;
+            }
+            if (format === 'jpeg' && isTransparent) {
+                isTransparent = false;
+                bgColorInput.value = '#ffffff';
+                bgColorPicker.value = '#ffffff';
+            }
+            updateHash();
+        });
+
+        // Quality slider
+        qualitySlider.addEventListener('input', () => {
+            qualityValue.textContent = qualitySlider.value + '%';
+            updateHash();
+        });
+
+        // Dimension inputs
+        widthInput.addEventListener('input', () => {
+            if (lockRatio.checked && aspectRatio) {
+                heightInput.value = Math.round(widthInput.value / aspectRatio);
+            }
+            updateHash();
+        });
+
+        heightInput.addEventListener('input', () => {
+            if (lockRatio.checked && aspectRatio) {
+                widthInput.value = Math.round(heightInput.value * aspectRatio);
+            }
+            updateHash();
+        });
+
+        paddingInput.addEventListener('input', updateHash);
+
+        fitToSvg.addEventListener('click', () => {
+            if (svgWidth && svgHeight) {
+                widthInput.value = Math.round(svgWidth);
+                heightInput.value = Math.round(svgHeight);
+                updateHash();
+            }
+        });
+
+        // Color inputs
+        bgColorPicker.addEventListener('input', () => {
+            bgColorInput.value = bgColorPicker.value;
+            isTransparent = false;
+            updateHash();
+        });
+
+        bgColorInput.addEventListener('input', () => {
+            if (/^#[0-9A-Fa-f]{6}$/.test(bgColorInput.value)) {
+                bgColorPicker.value = bgColorInput.value;
+                isTransparent = false;
+            }
+            updateHash();
+        });
+
+        transparentBtn.addEventListener('click', () => {
+            if (formatSelect.value === 'jpeg') {
+                showToast('JPEG does not support transparency', true);
+                return;
+            }
+            isTransparent = true;
+            bgColorInput.value = 'transparent';
+            updateHash();
+        });
+
+        // Convert
+        convertBtn.addEventListener('click', convert);
+
+        function convert() {
+            if (!currentSvg) return;
+
+            const format = formatSelect.value;
+            const quality = parseInt(qualitySlider.value) / 100;
+            const width = parseInt(widthInput.value) || 800;
+            const height = parseInt(heightInput.value) || 600;
+            const padding = parseInt(paddingInput.value) || 0;
+            const bgColor = isTransparent ? null : bgColorInput.value;
+
+            const totalWidth = width + (padding * 2);
+            const totalHeight = height + (padding * 2);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = totalWidth;
+            canvas.height = totalHeight;
+            const ctx = canvas.getContext('2d');
+
+            // Background
+            if (bgColor && format !== 'png') {
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, totalWidth, totalHeight);
+            } else if (bgColor && !isTransparent) {
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, totalWidth, totalHeight);
+            }
+
+            // Create image from SVG
+            const img = new Image();
+            const svgBlob = new Blob([currentSvg], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+
+            img.onload = () => {
+                ctx.drawImage(img, padding, padding, width, height);
+                URL.revokeObjectURL(url);
+
+                const mimeType = format === 'jpeg' ? 'image/jpeg' : format === 'webp' ? 'image/webp' : 'image/png';
+                outputDataUrl = canvas.toDataURL(mimeType, quality);
+
+                // Display output
+                outputPreview.innerHTML = `<img src="${outputDataUrl}" class="max-w-full max-h-[300px] rounded shadow-lg" alt="Converted image">`;
+
+                const sizeKb = Math.round((outputDataUrl.length * 3) / 4 / 1024);
+                outputInfo.textContent = `${totalWidth} × ${totalHeight} px • ${format.toUpperCase()} • ~${sizeKb} KB`;
+
+                downloadBtn.disabled = false;
+                copyBase64Btn.disabled = false;
+                base64Output.value = outputDataUrl;
+
+                showToast('Conversion complete!');
+            };
+
+            img.onerror = () => {
+                showToast('Failed to convert SVG', true);
+                URL.revokeObjectURL(url);
+            };
+
+            img.src = url;
+        }
+
+        // Download
+        downloadBtn.addEventListener('click', () => {
+            if (!outputDataUrl) return;
+            const format = formatSelect.value;
+            const ext = format === 'jpeg' ? 'jpg' : format;
+            const a = document.createElement('a');
+            a.href = outputDataUrl;
+            a.download = `converted-image.${ext}`;
+            a.click();
+        });
+
+        // Copy Base64
+        copyBase64Btn.addEventListener('click', () => {
+            if (!outputDataUrl) return;
+            navigator.clipboard.writeText(outputDataUrl).then(() => {
+                showToast('Base64 copied to clipboard!');
+            });
+        });
+
+        // Toggle Base64
+        toggleBase64Btn.addEventListener('click', () => {
+            base64Container.classList.toggle('hidden');
+            toggleBase64Btn.textContent = base64Container.classList.contains('hidden') ? 'Show' : 'Hide';
+        });
+
+        // Copy URL
+        copyUrlBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                showToast('URL copied to clipboard!');
+            });
+        });
+
+        // URL Hash management
+        function updateHash() {
+            const params = new URLSearchParams();
+            params.set('f', formatSelect.value);
+            params.set('q', qualitySlider.value);
+            params.set('w', widthInput.value);
+            params.set('h', heightInput.value);
+            params.set('p', paddingInput.value);
+            params.set('bg', isTransparent ? 'transparent' : bgColorInput.value);
+            params.set('lock', lockRatio.checked ? '1' : '0');
+            if (currentSvg && currentSvg.length < 2000) {
+                params.set('svg', btoa(encodeURIComponent(currentSvg)));
+            }
+            window.location.hash = params.toString();
+        }
+
+        function loadFromHash() {
+            const hash = window.location.hash.slice(1);
+            if (!hash) return;
+
+            const params = new URLSearchParams(hash);
+
+            if (params.has('f')) formatSelect.value = params.get('f');
+            if (params.has('q')) {
+                qualitySlider.value = params.get('q');
+                qualityValue.textContent = params.get('q') + '%';
+            }
+            if (params.has('w')) widthInput.value = params.get('w');
+            if (params.has('h')) heightInput.value = params.get('h');
+            if (params.has('p')) paddingInput.value = params.get('p');
+            if (params.has('bg')) {
+                const bg = params.get('bg');
+                if (bg === 'transparent') {
+                    isTransparent = true;
+                    bgColorInput.value = 'transparent';
+                } else {
+                    isTransparent = false;
+                    bgColorInput.value = bg;
+                    bgColorPicker.value = bg;
+                }
+            }
+            if (params.has('lock')) lockRatio.checked = params.get('lock') === '1';
+            if (params.has('svg')) {
+                try {
+                    const svgString = decodeURIComponent(atob(params.get('svg')));
+                    svgCodeInput.value = svgString;
+                    loadSvgFromString(svgString);
+                } catch (e) {
+                    console.error('Failed to decode SVG from hash');
+                }
+            }
+
+            // Update format-specific UI
+            formatSelect.dispatchEvent(new Event('change'));
+        }
+
+        // Toast
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            toastMessage.textContent = message;
+            toast.className = toast.className.replace(/bg-(emerald|red)-600/g, isError ? 'bg-red-600' : 'bg-emerald-600');
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 2500);
+        }
+
+        // Initialize
+        loadFromHash();
+        formatSelect.dispatchEvent(new Event('change'));
+    </script>
+</body>
+
+</html>

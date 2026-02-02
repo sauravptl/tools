@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFmpeg Crop Command Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .crop-overlay {
+            position: absolute;
+            border: 2px dashed #10b981;
+            background: rgba(16, 185, 129, 0.1);
+            cursor: move;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+        }
+        .crop-handle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #10b981;
+            border: 2px solid white;
+            border-radius: 2px;
+        }
+        .crop-handle.nw { top: -6px; left: -6px; cursor: nw-resize; }
+        .crop-handle.ne { top: -6px; right: -6px; cursor: ne-resize; }
+        .crop-handle.sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+        .crop-handle.se { bottom: -6px; right: -6px; cursor: se-resize; }
+        .crop-handle.n { top: -6px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+        .crop-handle.s { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+        .crop-handle.w { top: 50%; left: -6px; transform: translateY(-50%); cursor: w-resize; }
+        .crop-handle.e { top: 50%; right: -6px; transform: translateY(-50%); cursor: e-resize; }
+        .crop-dimensions {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            margin-bottom: 8px;
+        }
+        .command-block {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+        }
+        .drop-zone {
+            transition: all 0.2s ease;
+        }
+        .drop-zone.dragover {
+            border-color: #10b981;
+            background-color: rgba(16, 185, 129, 0.1);
+        }
+        video {
+            max-width: 100%;
+            max-height: 500px;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <div class="inline-flex items-center gap-3 mb-3">
+                <div class="w-11 h-11 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+            </div>
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent mb-2">
+                FFmpeg Crop Command Generator
+            </h1>
+            <p class="text-slate-400 max-w-2xl mx-auto">
+                Upload a video, define your crop area interactively, and get ready-to-use FFmpeg commands.
+                Supports both standard and iPhone-compatible output formats.
+            </p>
+        </header>
+
+        <!-- Drop Zone -->
+        <div id="dropZone" class="drop-zone border-2 border-dashed border-slate-600 rounded-2xl p-12 text-center cursor-pointer hover:border-orange-500 hover:bg-slate-800/30 mb-6">
+            <div class="flex flex-col items-center gap-4">
+                <div class="w-16 h-16 bg-slate-700/50 rounded-2xl flex items-center justify-center">
+                    <svg class="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-lg font-medium text-slate-300">Drop video file here or click to browse</p>
+                    <p class="text-sm text-slate-500 mt-1">MP4, WebM, MOV, AVI supported</p>
+                </div>
+            </div>
+            <input type="file" id="fileInput" accept="video/*" class="hidden">
+        </div>
+
+        <!-- Editor Section -->
+        <div id="editorSection" class="hidden">
+            <!-- Video Info -->
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4 bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                <div class="flex items-center gap-4">
+                    <span id="videoInfo" class="text-sm text-slate-400">Loading video...</span>
+                </div>
+                <button id="newVideoBtn" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium py-2 px-4 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    New Video
+                </button>
+            </div>
+
+            <!-- Video Container -->
+            <div class="bg-slate-800/50 rounded-xl overflow-hidden mb-6 border border-slate-700/50">
+                <div id="videoContainer" class="relative inline-block w-full flex justify-center bg-black">
+                    <video id="videoPlayer" class="block"></video>
+                    <div id="cropOverlay" class="crop-overlay hidden">
+                        <div class="crop-dimensions" id="cropDimensions">0 × 0</div>
+                        <div class="crop-handle nw" data-handle="nw"></div>
+                        <div class="crop-handle n" data-handle="n"></div>
+                        <div class="crop-handle ne" data-handle="ne"></div>
+                        <div class="crop-handle e" data-handle="e"></div>
+                        <div class="crop-handle se" data-handle="se"></div>
+                        <div class="crop-handle s" data-handle="s"></div>
+                        <div class="crop-handle sw" data-handle="sw"></div>
+                        <div class="crop-handle w" data-handle="w"></div>
+                    </div>
+                </div>
+                <!-- Video Controls -->
+                <div class="p-4 border-t border-slate-700/50 flex items-center gap-4">
+                    <button id="playPauseBtn" class="w-10 h-10 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
+                        <svg id="playIcon" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        <svg id="pauseIcon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                        </svg>
+                    </button>
+                    <input type="range" id="seekBar" class="flex-1 accent-orange-500" value="0" min="0" max="100" step="0.1">
+                    <span id="timeDisplay" class="text-sm text-slate-400 w-24 text-right">0:00 / 0:00</span>
+                </div>
+            </div>
+
+            <!-- Crop Parameters -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+                    <label class="block text-xs text-slate-500 mb-1">X Position</label>
+                    <input type="number" id="cropX" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-lg font-mono" value="0" min="0">
+                </div>
+                <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+                    <label class="block text-xs text-slate-500 mb-1">Y Position</label>
+                    <input type="number" id="cropY" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-lg font-mono" value="0" min="0">
+                </div>
+                <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+                    <label class="block text-xs text-slate-500 mb-1">Width</label>
+                    <input type="number" id="cropW" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-lg font-mono" value="0" min="1">
+                </div>
+                <div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
+                    <label class="block text-xs text-slate-500 mb-1">Height</label>
+                    <input type="number" id="cropH" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-lg font-mono" value="0" min="1">
+                </div>
+            </div>
+
+            <!-- Aspect Ratio Presets -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-slate-400 mb-2">Aspect Ratio Presets</label>
+                <div class="flex flex-wrap gap-2">
+                    <button data-ratio="16:9" class="ratio-btn px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-sm transition-colors">16:9</button>
+                    <button data-ratio="9:16" class="ratio-btn px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-sm transition-colors">9:16 (Vertical)</button>
+                    <button data-ratio="4:3" class="ratio-btn px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-sm transition-colors">4:3</button>
+                    <button data-ratio="1:1" class="ratio-btn px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-sm transition-colors">1:1 (Square)</button>
+                    <button data-ratio="21:9" class="ratio-btn px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-lg text-sm transition-colors">21:9 (Ultra-wide)</button>
+                    <button data-ratio="free" class="ratio-btn px-4 py-2 bg-orange-600 hover:bg-orange-700 border border-orange-600 rounded-lg text-sm transition-colors">Free</button>
+                </div>
+            </div>
+
+            <!-- FFmpeg Commands -->
+            <div class="space-y-4">
+                <!-- Standard Command -->
+                <div class="bg-slate-800/60 rounded-xl overflow-hidden border border-slate-700/50">
+                    <div class="flex items-center justify-between px-4 py-3 bg-slate-700/50 border-b border-slate-700/50">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span class="text-sm font-medium text-slate-300">Standard FFmpeg Command</span>
+                        </div>
+                        <button onclick="copyCommand('standard')" class="text-sm text-orange-400 hover:text-orange-300 transition-colors">Copy</button>
+                    </div>
+                    <pre id="standardCommand" class="command-block p-4 text-slate-300 overflow-x-auto whitespace-pre-wrap">ffmpeg -i input.mp4 -vf "crop=0:0:0:0" output.mp4</pre>
+                </div>
+
+                <!-- iPhone Compatible Command -->
+                <div class="bg-slate-800/60 rounded-xl overflow-hidden border border-slate-700/50">
+                    <div class="flex items-center justify-between px-4 py-3 bg-slate-700/50 border-b border-slate-700/50">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                            <span class="text-sm font-medium text-slate-300">iPhone Compatible (H.264 + AAC)</span>
+                        </div>
+                        <button onclick="copyCommand('iphone')" class="text-sm text-orange-400 hover:text-orange-300 transition-colors">Copy</button>
+                    </div>
+                    <pre id="iphoneCommand" class="command-block p-4 text-slate-300 overflow-x-auto whitespace-pre-wrap">ffmpeg -i input.mp4 -vf "crop=0:0:0:0" -c:v libx264 -preset medium -crf 23 -c:a aac -b:a 128k -movflags +faststart output.mp4</pre>
+                </div>
+
+                <!-- Crop Filter Only -->
+                <div class="bg-slate-800/60 rounded-xl overflow-hidden border border-slate-700/50">
+                    <div class="flex items-center justify-between px-4 py-3 bg-slate-700/50 border-b border-slate-700/50">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-purple-500 rounded-full"></span>
+                            <span class="text-sm font-medium text-slate-300">Crop Filter Only</span>
+                        </div>
+                        <button onclick="copyCommand('filter')" class="text-sm text-orange-400 hover:text-orange-300 transition-colors">Copy</button>
+                    </div>
+                    <pre id="filterCommand" class="command-block p-4 text-slate-300 overflow-x-auto">crop=0:0:0:0</pre>
+                </div>
+            </div>
+
+            <!-- Info -->
+            <div class="mt-6 bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
+                <h4 class="text-sm font-medium text-slate-300 mb-2">FFmpeg Crop Syntax</h4>
+                <p class="text-xs text-slate-500">
+                    <code class="bg-slate-700 px-1.5 py-0.5 rounded">crop=width:height:x:y</code> — 
+                    Width and height define the output dimensions, x and y define the top-left corner position of the crop area.
+                </p>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-orange-600 text-white px-5 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span id="toastMessage">Copied!</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const editorSection = document.getElementById('editorSection');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const videoContainer = document.getElementById('videoContainer');
+        const cropOverlay = document.getElementById('cropOverlay');
+        const cropDimensions = document.getElementById('cropDimensions');
+
+        const cropX = document.getElementById('cropX');
+        const cropY = document.getElementById('cropY');
+        const cropW = document.getElementById('cropW');
+        const cropH = document.getElementById('cropH');
+
+        let videoWidth = 0;
+        let videoHeight = 0;
+        let displayScale = 1;
+        let fileName = 'input.mp4';
+
+        // Crop state
+        let crop = { x: 0, y: 0, w: 100, h: 100 };
+        let isDragging = false;
+        let isResizing = false;
+        let activeHandle = null;
+        let dragStart = { x: 0, y: 0 };
+        let cropStart = { x: 0, y: 0, w: 0, h: 0 };
+        let aspectRatio = null;
+
+        // File handling
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                loadVideo(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                loadVideo(e.target.files[0]);
+            }
+        });
+
+        function loadVideo(file) {
+            fileName = file.name;
+            const url = URL.createObjectURL(file);
+            videoPlayer.src = url;
+
+            videoPlayer.onloadedmetadata = () => {
+                videoWidth = videoPlayer.videoWidth;
+                videoHeight = videoPlayer.videoHeight;
+
+                document.getElementById('videoInfo').textContent = 
+                    `${fileName} • ${videoWidth}×${videoHeight} • ${formatDuration(videoPlayer.duration)}`;
+
+                // Calculate display scale
+                const containerWidth = videoContainer.clientWidth;
+                displayScale = videoPlayer.offsetWidth / videoWidth;
+
+                // Initialize crop to center 50%
+                crop.w = Math.floor(videoWidth * 0.5);
+                crop.h = Math.floor(videoHeight * 0.5);
+                crop.x = Math.floor((videoWidth - crop.w) / 2);
+                crop.y = Math.floor((videoHeight - crop.h) / 2);
+
+                updateInputs();
+                updateOverlay();
+                updateCommands();
+
+                dropZone.classList.add('hidden');
+                editorSection.classList.remove('hidden');
+                cropOverlay.classList.remove('hidden');
+            };
+        }
+
+        // Video controls
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const seekBar = document.getElementById('seekBar');
+        const timeDisplay = document.getElementById('timeDisplay');
+
+        playPauseBtn.addEventListener('click', () => {
+            if (videoPlayer.paused) {
+                videoPlayer.play();
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+            } else {
+                videoPlayer.pause();
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+            }
+        });
+
+        videoPlayer.addEventListener('timeupdate', () => {
+            const progress = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+            seekBar.value = progress;
+            timeDisplay.textContent = `${formatTime(videoPlayer.currentTime)} / ${formatTime(videoPlayer.duration)}`;
+        });
+
+        seekBar.addEventListener('input', () => {
+            videoPlayer.currentTime = (seekBar.value / 100) * videoPlayer.duration;
+        });
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function formatDuration(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}m ${s}s`;
+        }
+
+        // Crop overlay interaction
+        cropOverlay.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const handle = e.target.dataset.handle;
+
+            if (handle) {
+                isResizing = true;
+                activeHandle = handle;
+            } else if (e.target === cropOverlay || e.target === cropDimensions) {
+                isDragging = true;
+            }
+
+            dragStart = { x: e.clientX, y: e.clientY };
+            cropStart = { ...crop };
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging && !isResizing) return;
+
+            const dx = (e.clientX - dragStart.x) / displayScale;
+            const dy = (e.clientY - dragStart.y) / displayScale;
+
+            if (isDragging) {
+                crop.x = Math.max(0, Math.min(videoWidth - crop.w, cropStart.x + dx));
+                crop.y = Math.max(0, Math.min(videoHeight - crop.h, cropStart.y + dy));
+            }
+
+            if (isResizing) {
+                let newX = crop.x, newY = crop.y, newW = crop.w, newH = crop.h;
+
+                if (activeHandle.includes('w')) {
+                    newW = Math.max(10, cropStart.w - dx);
+                    newX = cropStart.x + cropStart.w - newW;
+                    if (newX < 0) { newW += newX; newX = 0; }
+                }
+                if (activeHandle.includes('e')) {
+                    newW = Math.max(10, cropStart.w + dx);
+                    if (cropStart.x + newW > videoWidth) newW = videoWidth - cropStart.x;
+                }
+                if (activeHandle.includes('n')) {
+                    newH = Math.max(10, cropStart.h - dy);
+                    newY = cropStart.y + cropStart.h - newH;
+                    if (newY < 0) { newH += newY; newY = 0; }
+                }
+                if (activeHandle.includes('s')) {
+                    newH = Math.max(10, cropStart.h + dy);
+                    if (cropStart.y + newH > videoHeight) newH = videoHeight - cropStart.y;
+                }
+
+                // Apply aspect ratio constraint
+                if (aspectRatio && (activeHandle === 'se' || activeHandle === 'sw' || activeHandle === 'ne' || activeHandle === 'nw')) {
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        newH = newW / aspectRatio;
+                    } else {
+                        newW = newH * aspectRatio;
+                    }
+                    if (newX + newW > videoWidth) newW = videoWidth - newX;
+                    if (newY + newH > videoHeight) newH = videoHeight - newY;
+                }
+
+                crop.x = Math.round(newX);
+                crop.y = Math.round(newY);
+                crop.w = Math.round(newW);
+                crop.h = Math.round(newH);
+            }
+
+            updateInputs();
+            updateOverlay();
+            updateCommands();
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            isResizing = false;
+            activeHandle = null;
+        });
+
+        // Update overlay position
+        function updateOverlay() {
+            displayScale = videoPlayer.offsetWidth / videoWidth;
+            cropOverlay.style.left = `${crop.x * displayScale}px`;
+            cropOverlay.style.top = `${crop.y * displayScale}px`;
+            cropOverlay.style.width = `${crop.w * displayScale}px`;
+            cropOverlay.style.height = `${crop.h * displayScale}px`;
+            cropDimensions.textContent = `${Math.round(crop.w)} × ${Math.round(crop.h)}`;
+        }
+
+        // Update inputs
+        function updateInputs() {
+            cropX.value = Math.round(crop.x);
+            cropY.value = Math.round(crop.y);
+            cropW.value = Math.round(crop.w);
+            cropH.value = Math.round(crop.h);
+        }
+
+        // Input change handlers
+        [cropX, cropY, cropW, cropH].forEach(input => {
+            input.addEventListener('input', () => {
+                crop.x = Math.max(0, Math.min(videoWidth - 10, parseInt(cropX.value) || 0));
+                crop.y = Math.max(0, Math.min(videoHeight - 10, parseInt(cropY.value) || 0));
+                crop.w = Math.max(10, Math.min(videoWidth - crop.x, parseInt(cropW.value) || 10));
+                crop.h = Math.max(10, Math.min(videoHeight - crop.y, parseInt(cropH.value) || 10));
+                updateOverlay();
+                updateCommands();
+            });
+        });
+
+        // Aspect ratio presets
+        document.querySelectorAll('.ratio-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const ratio = btn.dataset.ratio;
+                
+                document.querySelectorAll('.ratio-btn').forEach(b => {
+                    b.classList.remove('bg-orange-600', 'border-orange-600');
+                    b.classList.add('bg-slate-700', 'border-slate-600');
+                });
+                btn.classList.remove('bg-slate-700', 'border-slate-600');
+                btn.classList.add('bg-orange-600', 'border-orange-600');
+
+                if (ratio === 'free') {
+                    aspectRatio = null;
+                } else {
+                    const [w, h] = ratio.split(':').map(Number);
+                    aspectRatio = w / h;
+                    
+                    // Adjust current crop to match ratio
+                    const centerX = crop.x + crop.w / 2;
+                    const centerY = crop.y + crop.h / 2;
+                    
+                    let newW = crop.w;
+                    let newH = newW / aspectRatio;
+                    
+                    if (newH > videoHeight) {
+                        newH = videoHeight * 0.8;
+                        newW = newH * aspectRatio;
+                    }
+                    if (newW > videoWidth) {
+                        newW = videoWidth * 0.8;
+                        newH = newW / aspectRatio;
+                    }
+
+                    crop.w = Math.round(newW);
+                    crop.h = Math.round(newH);
+                    crop.x = Math.max(0, Math.min(videoWidth - crop.w, Math.round(centerX - crop.w / 2)));
+                    crop.y = Math.max(0, Math.min(videoHeight - crop.h, Math.round(centerY - crop.h / 2)));
+
+                    updateInputs();
+                    updateOverlay();
+                    updateCommands();
+                }
+            });
+        });
+
+        // Update FFmpeg commands
+        function updateCommands() {
+            const w = Math.round(crop.w);
+            const h = Math.round(crop.h);
+            const x = Math.round(crop.x);
+            const y = Math.round(crop.y);
+            const outName = fileName.replace(/\.[^.]+$/, '_cropped.mp4');
+
+            const cropFilter = `crop=${w}:${h}:${x}:${y}`;
+
+            document.getElementById('standardCommand').textContent = 
+                `ffmpeg -i "${fileName}" -vf "${cropFilter}" "${outName}"`;
+
+            document.getElementById('iphoneCommand').textContent = 
+                `ffmpeg -i "${fileName}" -vf "${cropFilter}" -c:v libx264 -preset medium -crf 23 -c:a aac -b:a 128k -movflags +faststart "${outName}"`;
+
+            document.getElementById('filterCommand').textContent = cropFilter;
+        }
+
+        // Copy commands
+        function copyCommand(type) {
+            let text = '';
+            switch (type) {
+                case 'standard': text = document.getElementById('standardCommand').textContent; break;
+                case 'iphone': text = document.getElementById('iphoneCommand').textContent; break;
+                case 'filter': text = document.getElementById('filterCommand').textContent; break;
+            }
+            navigator.clipboard.writeText(text).then(() => showToast('Command copied!'));
+        }
+        window.copyCommand = copyCommand;
+
+        // New video
+        document.getElementById('newVideoBtn').addEventListener('click', () => {
+            videoPlayer.src = '';
+            fileInput.value = '';
+            editorSection.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            cropOverlay.classList.add('hidden');
+        });
+
+        // Toast
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 2000);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (videoWidth > 0) {
+                setTimeout(updateOverlay, 100);
+            }
+        });
+    </script>
+</body>
+</html>

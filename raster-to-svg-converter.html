@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base64 SVG Embedding Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .code-block {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .card-hover {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .checkered-bg {
+            background-image:
+                linear-gradient(45deg, #1e293b 25%, transparent 25%),
+                linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #1e293b 75%),
+                linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+            background-color: #0f172a;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white">
+    <div class="container mx-auto px-4 py-10 max-w-6xl">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <div class="inline-flex items-center gap-3 mb-4">
+                <div
+                    class="w-12 h-12 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-xl flex items-center justify-center">
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+            </div>
+            <h1
+                class="text-4xl font-bold bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent mb-4">
+                Base64 SVG Embedding Demo
+            </h1>
+            <p class="text-slate-400 max-w-3xl mx-auto text-lg">
+                Embed SVG images directly into HTML using base64 data URIs. This eliminates separate image files
+                and reduces HTTP requests. SVGs embedded as images have scripts automatically disabled for security.
+            </p>
+        </header>
+
+        <!-- Security Notice -->
+        <div class="bg-emerald-900/30 border border-emerald-700/50 rounded-xl p-5 mb-10">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-emerald-300 mb-1">Security Benefit</h3>
+                    <p class="text-slate-400 text-sm">
+                        When SVGs are embedded via <code
+                            class="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-300">&lt;img&gt;</code> tags with
+                        data URIs,
+                        the browser treats them as static images. Any JavaScript, event handlers, or external references
+                        within the SVG are automatically ignored, providing safe inline image delivery.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SVG Examples Grid -->
+        <h2 class="text-2xl font-semibold text-slate-200 mb-6">Embedded SVG Examples</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <!-- Example 1: Geometric Shape -->
+            <div class="card-hover bg-slate-800/60 rounded-2xl overflow-hidden border border-slate-700/50">
+                <div class="checkered-bg p-8 flex items-center justify-center min-h-[200px]">
+                    <img id="svg1" alt="Geometric hexagon pattern" class="max-w-full max-h-[160px]">
+                </div>
+                <div class="p-5 border-t border-slate-700/50">
+                    <h3 class="font-semibold text-slate-200 mb-2">Geometric Hexagon</h3>
+                    <p class="text-sm text-slate-400 mb-3">A colorful hexagonal pattern with gradient fills</p>
+                    <button onclick="showSource(0)"
+                        class="w-full bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium py-2.5 px-4 rounded-lg transition-colors">
+                        View SVG Source
+                    </button>
+                </div>
+            </div>
+
+            <!-- Example 2: Icon -->
+            <div class="card-hover bg-slate-800/60 rounded-2xl overflow-hidden border border-slate-700/50">
+                <div class="checkered-bg p-8 flex items-center justify-center min-h-[200px]">
+                    <img id="svg2" alt="Rocket icon" class="max-w-full max-h-[160px]">
+                </div>
+                <div class="p-5 border-t border-slate-700/50">
+                    <h3 class="font-semibold text-slate-200 mb-2">Rocket Icon</h3>
+                    <p class="text-sm text-slate-400 mb-3">A detailed rocket ship illustration with flames</p>
+                    <button onclick="showSource(1)"
+                        class="w-full bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium py-2.5 px-4 rounded-lg transition-colors">
+                        View SVG Source
+                    </button>
+                </div>
+            </div>
+
+            <!-- Example 3: Abstract Art -->
+            <div class="card-hover bg-slate-800/60 rounded-2xl overflow-hidden border border-slate-700/50">
+                <div class="checkered-bg p-8 flex items-center justify-center min-h-[200px]">
+                    <img id="svg3" alt="Abstract waves" class="max-w-full max-h-[160px]">
+                </div>
+                <div class="p-5 border-t border-slate-700/50">
+                    <h3 class="font-semibold text-slate-200 mb-2">Abstract Waves</h3>
+                    <p class="text-sm text-slate-400 mb-3">Flowing wave pattern with gradient colors</p>
+                    <button onclick="showSource(2)"
+                        class="w-full bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium py-2.5 px-4 rounded-lg transition-colors">
+                        View SVG Source
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- How It Works Section -->
+        <div class="bg-slate-800/40 rounded-2xl p-6 mb-10 border border-slate-700/50">
+            <h2 class="text-xl font-semibold text-slate-200 mb-4">How Base64 SVG Embedding Works</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-medium text-cyan-400 mb-2">1. Original SVG</h4>
+                    <pre class="code-block bg-slate-900/80 rounded-lg p-4 text-slate-400 overflow-x-auto"><code>&lt;svg xmlns="..."&gt;
+  &lt;circle cx="50" cy="50" r="40"/&gt;
+&lt;/svg&gt;</code></pre>
+                </div>
+                <div>
+                    <h4 class="font-medium text-cyan-400 mb-2">2. Embedded as Data URI</h4>
+                    <pre class="code-block bg-slate-900/80 rounded-lg p-4 text-slate-400 overflow-x-auto"><code>&lt;img src="data:image/svg+xml;base64,
+PHN2ZyB4bWxucz0i..."/&gt;</code></pre>
+                </div>
+            </div>
+            <div class="mt-5 flex flex-wrap gap-3">
+                <span
+                    class="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 text-xs font-medium px-3 py-1.5 rounded-full">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    No external files
+                </span>
+                <span
+                    class="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 text-xs font-medium px-3 py-1.5 rounded-full">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    Zero HTTP requests
+                </span>
+                <span
+                    class="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 text-xs font-medium px-3 py-1.5 rounded-full">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    Scripts disabled
+                </span>
+                <span
+                    class="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 text-xs font-medium px-3 py-1.5 rounded-full">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    Self-contained HTML
+                </span>
+            </div>
+        </div>
+
+        <!-- Source Code Modal -->
+        <div id="sourceModal"
+            class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-200 z-50">
+            <div
+                class="bg-slate-800 rounded-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden border border-slate-700 shadow-2xl">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+                    <h3 id="modalTitle" class="text-lg font-semibold text-slate-200">SVG Source Code</h3>
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-white transition-colors p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto max-h-[calc(85vh-140px)]">
+                    <div class="mb-4">
+                        <h4 class="text-sm font-medium text-cyan-400 mb-2">Decoded SVG Source:</h4>
+                        <pre id="svgSourceCode"
+                            class="code-block bg-slate-900 rounded-xl p-4 text-slate-300 overflow-x-auto whitespace-pre-wrap break-all"></pre>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-medium text-purple-400 mb-2">Base64 Data URI:</h4>
+                        <pre id="base64Code"
+                            class="code-block bg-slate-900 rounded-xl p-4 text-slate-400 overflow-x-auto whitespace-pre-wrap break-all text-xs"></pre>
+                    </div>
+                </div>
+                <div class="px-6 py-4 border-t border-slate-700 flex gap-3">
+                    <button onclick="copySvgSource()"
+                        class="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors">
+                        Copy SVG Source
+                    </button>
+                    <button onclick="copyBase64()"
+                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors">
+                        Copy Data URI
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast"
+            class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span id="toastMessage">Copied!</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-slate-500 text-sm mt-12 pb-6">
+            <p>Base64 encoding allows SVG images to be embedded directly in HTML without separate files.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Three different SVG examples as raw SVG strings
+        const svgExamples = [
+            // 1. Geometric Hexagon
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f093fb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f5576c;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <polygon points="100,10 180,55 180,145 100,190 20,145 20,55" fill="url(#grad1)" stroke="#fff" stroke-width="2"/>
+  <polygon points="100,40 145,67 145,133 100,160 55,133 55,67" fill="url(#grad2)" stroke="#fff" stroke-width="1.5"/>
+  <polygon points="100,65 120,80 120,120 100,135 80,120 80,80" fill="#fff" opacity="0.9"/>
+  <circle cx="100" cy="100" r="15" fill="#667eea"/>
+</svg>`,
+
+            // 2. Rocket Icon
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e0e7ff"/>
+      <stop offset="100%" style="stop-color:#a5b4fc"/>
+    </linearGradient>
+    <linearGradient id="flameGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="50%" style="stop-color:#f97316"/>
+      <stop offset="100%" style="stop-color:#ef4444"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="100" cy="90" rx="30" ry="60" fill="url(#bodyGrad)" stroke="#6366f1" stroke-width="2"/>
+  <polygon points="100,20 120,50 80,50" fill="#6366f1"/>
+  <ellipse cx="100" cy="85" rx="12" ry="15" fill="#1e1b4b"/>
+  <ellipse cx="100" cy="82" rx="8" ry="10" fill="#60a5fa"/>
+  <path d="M70,100 Q50,90 55,120 L70,110 Z" fill="#6366f1"/>
+  <path d="M130,100 Q150,90 145,120 L130,110 Z" fill="#6366f1"/>
+  <path d="M85,150 Q100,180 115,150 Q100,165 85,150" fill="url(#flameGrad)"/>
+  <path d="M90,150 Q100,170 110,150 Q100,160 90,150" fill="#fef08a"/>
+  <circle cx="100" cy="115" r="5" fill="#6366f1"/>
+</svg>`,
+
+            // 3. Abstract Waves
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="wave1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#06b6d4"/>
+      <stop offset="100%" style="stop-color:#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="wave2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#d946ef"/>
+    </linearGradient>
+    <linearGradient id="wave3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f43f5e"/>
+      <stop offset="100%" style="stop-color:#fb923c"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" fill="#0f172a"/>
+  <path d="M0,120 Q25,100 50,120 T100,120 T150,120 T200,120 L200,200 L0,200 Z" fill="url(#wave3)" opacity="0.8"/>
+  <path d="M0,100 Q25,80 50,100 T100,100 T150,100 T200,100 L200,200 L0,200 Z" fill="url(#wave2)" opacity="0.7"/>
+  <path d="M0,80 Q25,60 50,80 T100,80 T150,80 T200,80 L200,200 L0,200 Z" fill="url(#wave1)" opacity="0.6"/>
+  <circle cx="160" cy="40" r="20" fill="#fef08a" opacity="0.9"/>
+  <circle cx="160" cy="40" r="12" fill="#fef9c3"/>
+</svg>`
+        ];
+
+        const svgTitles = ['Geometric Hexagon', 'Rocket Icon', 'Abstract Waves'];
+        let currentSvgIndex = 0;
+        let currentSvgSource = '';
+        let currentBase64 = '';
+
+        // Convert SVG string to base64 data URI
+        function svgToBase64(svgString) {
+            const base64 = btoa(unescape(encodeURIComponent(svgString)));
+            return `data:image/svg+xml;base64,${base64}`;
+        }
+
+        // Safely decode and display SVG source
+        function decodeSvgFromDataUri(dataUri) {
+            try {
+                const base64 = dataUri.replace('data:image/svg+xml;base64,', '');
+                return decodeURIComponent(escape(atob(base64)));
+            } catch (e) {
+                console.error('Error decoding SVG:', e);
+                return 'Error decoding SVG source';
+            }
+        }
+
+        // Initialize images with base64 data URIs
+        function initImages() {
+            svgExamples.forEach((svg, index) => {
+                const img = document.getElementById(`svg${index + 1}`);
+                if (img) {
+                    img.src = svgToBase64(svg);
+                }
+            });
+        }
+
+        // Show source modal
+        function showSource(index) {
+            currentSvgIndex = index;
+            const img = document.getElementById(`svg${index + 1}`);
+            currentBase64 = img.src;
+            currentSvgSource = decodeSvgFromDataUri(currentBase64);
+
+            document.getElementById('modalTitle').textContent = `${svgTitles[index]} - Source Code`;
+            document.getElementById('svgSourceCode').textContent = currentSvgSource;
+            document.getElementById('base64Code').textContent = currentBase64;
+
+            const modal = document.getElementById('sourceModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.classList.add('opacity-100');
+        }
+
+        // Close modal
+        function closeModal() {
+            const modal = document.getElementById('sourceModal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.classList.remove('opacity-100');
+        }
+
+        // Copy SVG source
+        function copySvgSource() {
+            navigator.clipboard.writeText(currentSvgSource).then(() => {
+                showToast('SVG source copied!');
+            });
+        }
+
+        // Copy base64 data URI
+        function copyBase64() {
+            navigator.clipboard.writeText(currentBase64).then(() => {
+                showToast('Data URI copied!');
+            });
+        }
+
+        // Toast notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 2000);
+        }
+
+        // Close modal on backdrop click
+        document.getElementById('sourceModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                closeModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Initialize on load
+        initImages();
+    </script>
+</body>
+
+</html>

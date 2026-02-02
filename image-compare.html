@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Size & Quality Comparator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .crop-area {
+            position: absolute;
+            border: 2px dashed #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+            cursor: move;
+        }
+        .crop-handle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #3b82f6;
+            border: 2px solid white;
+            border-radius: 2px;
+        }
+        .crop-handle.nw { top: -6px; left: -6px; cursor: nw-resize; }
+        .crop-handle.ne { top: -6px; right: -6px; cursor: ne-resize; }
+        .crop-handle.sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+        .crop-handle.se { bottom: -6px; right: -6px; cursor: se-resize; }
+        .variant-card {
+            transition: all 0.3s ease;
+        }
+        .variant-card.full-width {
+            grid-column: 1 / -1;
+        }
+        .variant-card.full-width img {
+            max-width: 100%;
+            width: auto;
+        }
+        .checkerboard {
+            background-image: 
+                linear-gradient(45deg, #ccc 25%, transparent 25%),
+                linear-gradient(-45deg, #ccc 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #ccc 75%),
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        .size-preset:hover {
+            transform: scale(1.02);
+        }
+        .quality-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3b82f6;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-2">
+                Image Size & Quality Comparator
+            </h1>
+            <p class="text-gray-400">Upload, crop, and compare images at different sizes and compression levels</p>
+        </header>
+
+        <!-- Upload Section -->
+        <section id="upload-section" class="mb-8">
+            <div id="drop-zone" class="border-2 border-dashed border-gray-600 rounded-xl p-12 text-center hover:border-blue-500 transition-colors cursor-pointer">
+                <input type="file" id="file-input" accept="image/*" class="hidden">
+                <div class="space-y-4">
+                    <svg class="w-16 h-16 mx-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <p class="text-xl text-gray-400">Drop an image here or click to upload</p>
+                    <p class="text-sm text-gray-500">Supports PNG, JPG, WebP, GIF</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Transparency Alert -->
+        <section id="transparency-alert" class="hidden mb-6">
+            <div class="bg-amber-900/30 border border-amber-600 rounded-lg p-4 flex items-center gap-4">
+                <svg class="w-6 h-6 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <div class="flex-1">
+                    <p class="font-semibold text-amber-400">Transparency Detected</p>
+                    <p class="text-sm text-amber-300/80">This image has transparent areas. Choose a background color for JPEG exports.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-300">Background:</label>
+                    <input type="color" id="bg-color-picker" value="#ffffff" class="w-10 h-10 rounded cursor-pointer border-2 border-gray-600">
+                </div>
+            </div>
+        </section>
+
+        <!-- Crop Section -->
+        <section id="crop-section" class="hidden mb-8">
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold">Crop Area</h2>
+                    <div class="flex gap-2">
+                        <button id="reset-crop-btn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                            Reset Crop
+                        </button>
+                        <button id="use-full-btn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                            Use Full Image
+                        </button>
+                    </div>
+                </div>
+                <div class="flex gap-4 mb-4 text-sm">
+                    <span class="text-gray-400">Original: <span id="original-size" class="text-white"></span></span>
+                    <span class="text-gray-400">Crop: <span id="crop-size" class="text-white"></span></span>
+                    <span class="text-gray-400">File Size: <span id="original-file-size" class="text-white"></span></span>
+                </div>
+                <div id="crop-container" class="relative inline-block max-w-full overflow-hidden bg-gray-900 rounded-lg">
+                    <canvas id="source-canvas" class="max-w-full"></canvas>
+                    <div id="crop-area" class="crop-area">
+                        <div class="crop-handle nw" data-handle="nw"></div>
+                        <div class="crop-handle ne" data-handle="ne"></div>
+                        <div class="crop-handle sw" data-handle="sw"></div>
+                        <div class="crop-handle se" data-handle="se"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings Section -->
+        <section id="settings-section" class="hidden mb-8">
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-xl font-semibold mb-4">Output Settings</h2>
+                
+                <!-- Size Presets -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-300 mb-3">Size Presets</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2" id="size-presets">
+                        <button class="size-preset px-3 py-2 bg-gray-700 hover:bg-blue-600 rounded-lg text-sm transition-all" data-width="1920" data-height="1080">1920×1080</button>
+                        <button class="size-preset px-3 py-2 bg-gray-700 hover:bg-blue-600 rounded-lg text-sm transition-all" data-width="1280" data-height="720">1280×720</button>
+                        <button class="size-preset px-3 py-2 bg-gray-700 hover:bg-blue-600 rounded-lg text-sm transition-all" data-width="800" data-height="600">800×600</button>
+                        <button class="size-preset px-3 py-2 bg-gray-700 hover:bg-blue-600 rounded-lg text-sm transition-all" data-width="640" data-height="480">640×480</button>
+                        <button class="size-preset px-3 py-2 bg-gray-700 hover:bg-blue-600 rounded-lg text-sm transition-all" data-width="400" data-height="300">400×300</button>
+                        <button class="size-preset px-3 py-2 bg-gray-700 hover:bg-blue-600 rounded-lg text-sm transition-all" data-width="200" data-height="150">200×150</button>
+                    </div>
+                </div>
+
+                <!-- Custom Sizes -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-300 mb-3">Custom Sizes (one per line, format: WIDTHxHEIGHT or just WIDTH)</label>
+                    <textarea id="custom-sizes" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-sm font-mono" rows="3" placeholder="e.g.&#10;500x400&#10;300&#10;150x150"></textarea>
+                </div>
+
+                <!-- Quality Settings -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-300 mb-3">Quality Levels</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs text-gray-400">JPEG/WebP Quality Range</label>
+                            <div class="flex gap-2 mt-1">
+                                <input type="number" id="quality-min" value="20" min="1" max="100" class="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
+                                <span class="text-gray-500 self-center">to</span>
+                                <input type="number" id="quality-max" value="100" min="1" max="100" class="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
+                                <span class="text-gray-500 self-center">step</span>
+                                <input type="number" id="quality-step" value="20" min="1" max="50" class="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-400">Output Formats</label>
+                            <div class="flex gap-4 mt-2">
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" id="format-jpeg" checked class="rounded bg-gray-700 border-gray-600">
+                                    <span class="text-sm">JPEG</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" id="format-webp" checked class="rounded bg-gray-700 border-gray-600">
+                                    <span class="text-sm">WebP</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" id="format-png" class="rounded bg-gray-700 border-gray-600">
+                                    <span class="text-sm">PNG</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <button id="generate-btn" class="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-lg font-semibold transition-all transform hover:scale-[1.02]">
+                    Generate Variants
+                </button>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section id="results-section" class="hidden">
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold">Generated Variants</h2>
+                    <div class="flex gap-2">
+                        <button id="download-all-btn" class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm transition-colors flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            Download All
+                        </button>
+                        <select id="sort-by" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                            <option value="size-asc">Size: Smallest First</option>
+                            <option value="size-desc">Size: Largest First</option>
+                            <option value="quality-asc">Quality: Lowest First</option>
+                            <option value="quality-desc">Quality: Highest First</option>
+                            <option value="dimensions">Dimensions</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="variants-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <!-- Variants will be inserted here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+            <div class="bg-gray-800 rounded-xl p-8 text-center">
+                <div class="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p class="text-lg">Generating variants...</p>
+                <p id="loading-progress" class="text-sm text-gray-400 mt-2">0 / 0</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        const state = {
+            originalImage: null,
+            originalFile: null,
+            hasTransparency: false,
+            bgColor: '#ffffff',
+            crop: { x: 0, y: 0, width: 0, height: 0 },
+            displayScale: 1,
+            variants: [],
+            selectedSizes: []
+        };
+
+        // DOM Elements
+        const elements = {
+            dropZone: document.getElementById('drop-zone'),
+            fileInput: document.getElementById('file-input'),
+            transparencyAlert: document.getElementById('transparency-alert'),
+            bgColorPicker: document.getElementById('bg-color-picker'),
+            cropSection: document.getElementById('crop-section'),
+            settingsSection: document.getElementById('settings-section'),
+            resultsSection: document.getElementById('results-section'),
+            sourceCanvas: document.getElementById('source-canvas'),
+            cropArea: document.getElementById('crop-area'),
+            cropContainer: document.getElementById('crop-container'),
+            originalSize: document.getElementById('original-size'),
+            cropSize: document.getElementById('crop-size'),
+            originalFileSize: document.getElementById('original-file-size'),
+            resetCropBtn: document.getElementById('reset-crop-btn'),
+            useFullBtn: document.getElementById('use-full-btn'),
+            sizePresets: document.getElementById('size-presets'),
+            customSizes: document.getElementById('custom-sizes'),
+            qualityMin: document.getElementById('quality-min'),
+            qualityMax: document.getElementById('quality-max'),
+            qualityStep: document.getElementById('quality-step'),
+            formatJpeg: document.getElementById('format-jpeg'),
+            formatWebp: document.getElementById('format-webp'),
+            formatPng: document.getElementById('format-png'),
+            generateBtn: document.getElementById('generate-btn'),
+            variantsGrid: document.getElementById('variants-grid'),
+            loadingOverlay: document.getElementById('loading-overlay'),
+            loadingProgress: document.getElementById('loading-progress'),
+            downloadAllBtn: document.getElementById('download-all-btn'),
+            sortBy: document.getElementById('sort-by')
+        };
+
+        // Utilities
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        function detectTransparency(canvas) {
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            for (let i = 3; i < data.length; i += 4) {
+                if (data[i] < 255) return true;
+            }
+            return false;
+        }
+
+        // File Upload
+        function handleFile(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                alert('Please upload a valid image file');
+                return;
+            }
+
+            state.originalFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    state.originalImage = img;
+                    initializeCanvas();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function initializeCanvas() {
+            const img = state.originalImage;
+            const canvas = elements.sourceCanvas;
+            const ctx = canvas.getContext('2d');
+
+            // Set canvas to original image size
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+
+            // Calculate display scale
+            const maxDisplayWidth = elements.cropContainer.parentElement.clientWidth - 48;
+            state.displayScale = Math.min(1, maxDisplayWidth / img.width);
+            canvas.style.width = (img.width * state.displayScale) + 'px';
+            canvas.style.height = (img.height * state.displayScale) + 'px';
+
+            // Check for transparency
+            state.hasTransparency = detectTransparency(canvas);
+            elements.transparencyAlert.classList.toggle('hidden', !state.hasTransparency);
+
+            // Initialize crop to full image
+            resetCrop();
+
+            // Show sections
+            elements.cropSection.classList.remove('hidden');
+            elements.settingsSection.classList.remove('hidden');
+
+            // Update info
+            elements.originalSize.textContent = `${img.width} × ${img.height}`;
+            elements.originalFileSize.textContent = formatFileSize(state.originalFile.size);
+        }
+
+        function resetCrop() {
+            const img = state.originalImage;
+            state.crop = { x: 0, y: 0, width: img.width, height: img.height };
+            updateCropUI();
+        }
+
+        function updateCropUI() {
+            const crop = state.crop;
+            const scale = state.displayScale;
+            
+            elements.cropArea.style.left = (crop.x * scale) + 'px';
+            elements.cropArea.style.top = (crop.y * scale) + 'px';
+            elements.cropArea.style.width = (crop.width * scale) + 'px';
+            elements.cropArea.style.height = (crop.height * scale) + 'px';
+            
+            elements.cropSize.textContent = `${Math.round(crop.width)} × ${Math.round(crop.height)}`;
+        }
+
+        // Crop Interaction
+        let isDragging = false;
+        let dragType = null;
+        let dragStart = { x: 0, y: 0 };
+        let cropStart = { x: 0, y: 0, width: 0, height: 0 };
+
+        elements.cropArea.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            dragStart = { x: e.clientX, y: e.clientY };
+            cropStart = { ...state.crop };
+            
+            if (e.target.classList.contains('crop-handle')) {
+                dragType = e.target.dataset.handle;
+            } else {
+                dragType = 'move';
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const dx = (e.clientX - dragStart.x) / state.displayScale;
+            const dy = (e.clientY - dragStart.y) / state.displayScale;
+            const img = state.originalImage;
+            
+            if (dragType === 'move') {
+                state.crop.x = Math.max(0, Math.min(img.width - cropStart.width, cropStart.x + dx));
+                state.crop.y = Math.max(0, Math.min(img.height - cropStart.height, cropStart.y + dy));
+            } else {
+                let newX = cropStart.x;
+                let newY = cropStart.y;
+                let newW = cropStart.width;
+                let newH = cropStart.height;
+                
+                if (dragType.includes('w')) {
+                    newX = Math.max(0, Math.min(cropStart.x + cropStart.width - 20, cropStart.x + dx));
+                    newW = cropStart.width - (newX - cropStart.x);
+                }
+                if (dragType.includes('e')) {
+                    newW = Math.max(20, Math.min(img.width - cropStart.x, cropStart.width + dx));
+                }
+                if (dragType.includes('n')) {
+                    newY = Math.max(0, Math.min(cropStart.y + cropStart.height - 20, cropStart.y + dy));
+                    newH = cropStart.height - (newY - cropStart.y);
+                }
+                if (dragType.includes('s')) {
+                    newH = Math.max(20, Math.min(img.height - cropStart.y, cropStart.height + dy));
+                }
+                
+                state.crop = { x: newX, y: newY, width: newW, height: newH };
+            }
+            
+            updateCropUI();
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            dragType = null;
+        });
+
+        // Event Listeners
+        elements.dropZone.addEventListener('click', () => elements.fileInput.click());
+        elements.dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.add('border-blue-500', 'bg-blue-500/10');
+        });
+        elements.dropZone.addEventListener('dragleave', () => {
+            elements.dropZone.classList.remove('border-blue-500', 'bg-blue-500/10');
+        });
+        elements.dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.remove('border-blue-500', 'bg-blue-500/10');
+            handleFile(e.dataTransfer.files[0]);
+        });
+        elements.fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        elements.bgColorPicker.addEventListener('change', (e) => {
+            state.bgColor = e.target.value;
+        });
+
+        elements.resetCropBtn.addEventListener('click', resetCrop);
+        elements.useFullBtn.addEventListener('click', resetCrop);
+
+        // Size Presets
+        elements.sizePresets.addEventListener('click', (e) => {
+            if (e.target.classList.contains('size-preset')) {
+                e.target.classList.toggle('bg-blue-600');
+                e.target.classList.toggle('bg-gray-700');
+            }
+        });
+
+        // Generate Variants
+        elements.generateBtn.addEventListener('click', generateVariants);
+
+        async function generateVariants() {
+            const sizes = getSelectedSizes();
+            const qualities = getQualityLevels();
+            const formats = getSelectedFormats();
+            
+            if (sizes.length === 0) {
+                alert('Please select at least one size');
+                return;
+            }
+            if (formats.length === 0) {
+                alert('Please select at least one format');
+                return;
+            }
+
+            const totalVariants = sizes.length * qualities.length * formats.length;
+            elements.loadingOverlay.classList.remove('hidden');
+            elements.loadingProgress.textContent = `0 / ${totalVariants}`;
+            
+            state.variants = [];
+            let completed = 0;
+
+            for (const size of sizes) {
+                for (const quality of qualities) {
+                    for (const format of formats) {
+                        // Skip quality for PNG
+                        if (format === 'png' && quality !== qualities[qualities.length - 1]) continue;
+                        
+                        const variant = await createVariant(size, quality, format);
+                        state.variants.push(variant);
+                        completed++;
+                        elements.loadingProgress.textContent = `${completed} / ${totalVariants}`;
+                        
+                        // Yield to UI
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+            }
+
+            elements.loadingOverlay.classList.add('hidden');
+            displayVariants();
+            elements.resultsSection.classList.remove('hidden');
+        }
+
+        function getSelectedSizes() {
+            const sizes = [];
+            
+            // Get preset sizes
+            document.querySelectorAll('.size-preset.bg-blue-600').forEach(btn => {
+                sizes.push({
+                    width: parseInt(btn.dataset.width),
+                    height: parseInt(btn.dataset.height)
+                });
+            });
+            
+            // Get custom sizes
+            const customText = elements.customSizes.value.trim();
+            if (customText) {
+                customText.split('\n').forEach(line => {
+                    line = line.trim();
+                    if (!line) return;
+                    
+                    if (line.includes('x') || line.includes('×')) {
+                        const parts = line.split(/[x×]/i);
+                        sizes.push({
+                            width: parseInt(parts[0]),
+                            height: parseInt(parts[1])
+                        });
+                    } else {
+                        const width = parseInt(line);
+                        const aspectRatio = state.crop.height / state.crop.width;
+                        sizes.push({
+                            width: width,
+                            height: Math.round(width * aspectRatio)
+                        });
+                    }
+                });
+            }
+            
+            return sizes.filter(s => s.width > 0 && s.height > 0);
+        }
+
+        function getQualityLevels() {
+            const min = parseInt(elements.qualityMin.value);
+            const max = parseInt(elements.qualityMax.value);
+            const step = parseInt(elements.qualityStep.value);
+            
+            const levels = [];
+            for (let q = min; q <= max; q += step) {
+                levels.push(q);
+            }
+            if (levels[levels.length - 1] !== max) {
+                levels.push(max);
+            }
+            return levels;
+        }
+
+        function getSelectedFormats() {
+            const formats = [];
+            if (elements.formatJpeg.checked) formats.push('jpeg');
+            if (elements.formatWebp.checked) formats.push('webp');
+            if (elements.formatPng.checked) formats.push('png');
+            return formats;
+        }
+
+        async function createVariant(size, quality, format) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = size.width;
+            canvas.height = size.height;
+            
+            // Fill background for formats that don't support transparency
+            if ((format === 'jpeg' || state.hasTransparency) && format !== 'png') {
+                ctx.fillStyle = state.bgColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            // Draw cropped and scaled image
+            ctx.drawImage(
+                state.originalImage,
+                state.crop.x, state.crop.y, state.crop.width, state.crop.height,
+                0, 0, size.width, size.height
+            );
+            
+            // Get blob
+            const mimeType = format === 'jpeg' ? 'image/jpeg' : format === 'webp' ? 'image/webp' : 'image/png';
+            const qualityValue = format === 'png' ? undefined : quality / 100;
+            
+            return new Promise(resolve => {
+                canvas.toBlob(blob => {
+                    resolve({
+                        width: size.width,
+                        height: size.height,
+                        quality: format === 'png' ? 100 : quality,
+                        format: format,
+                        size: blob.size,
+                        url: URL.createObjectURL(blob),
+                        blob: blob
+                    });
+                }, mimeType, qualityValue);
+            });
+        }
+
+        function displayVariants() {
+            sortVariants();
+            
+            elements.variantsGrid.innerHTML = state.variants.map((v, i) => `
+                <div class="variant-card bg-gray-700 rounded-lg overflow-hidden" data-index="${i}">
+                    <div class="relative ${state.hasTransparency && v.format === 'png' ? 'checkerboard' : 'bg-gray-900'}">
+                        <img src="${v.url}" alt="Variant" class="w-full h-40 object-contain">
+                        <button class="toggle-size-btn absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 rounded transition-colors" title="Toggle full width">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium">${v.width}×${v.height}</span>
+                            <span class="text-xs px-2 py-0.5 rounded ${v.format === 'jpeg' ? 'bg-orange-600' : v.format === 'webp' ? 'bg-green-600' : 'bg-blue-600'}">${v.format.toUpperCase()}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-400">Q: ${v.quality}%</span>
+                            <span class="font-semibold ${v.size < 50000 ? 'text-green-400' : v.size < 200000 ? 'text-yellow-400' : 'text-red-400'}">${formatFileSize(v.size)}</span>
+                        </div>
+                        <button class="download-btn w-full mt-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-sm transition-colors flex items-center justify-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            Download
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Add event listeners
+            document.querySelectorAll('.toggle-size-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const card = e.target.closest('.variant-card');
+                    card.classList.toggle('full-width');
+                    const img = card.querySelector('img');
+                    img.classList.toggle('h-40');
+                    img.classList.toggle('h-auto');
+                });
+            });
+            
+            document.querySelectorAll('.download-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.closest('.variant-card').dataset.index);
+                    downloadVariant(state.variants[index]);
+                });
+            });
+        }
+
+        function sortVariants() {
+            const sortType = elements.sortBy.value;
+            
+            state.variants.sort((a, b) => {
+                switch (sortType) {
+                    case 'size-asc': return a.size - b.size;
+                    case 'size-desc': return b.size - a.size;
+                    case 'quality-asc': return a.quality - b.quality;
+                    case 'quality-desc': return b.quality - a.quality;
+                    case 'dimensions': return (b.width * b.height) - (a.width * a.height);
+                    default: return 0;
+                }
+            });
+        }
+
+        elements.sortBy.addEventListener('change', displayVariants);
+
+        function downloadVariant(variant) {
+            const link = document.createElement('a');
+            link.href = variant.url;
+            link.download = `image_${variant.width}x${variant.height}_q${variant.quality}.${variant.format}`;
+            link.click();
+        }
+
+        elements.downloadAllBtn.addEventListener('click', async () => {
+            for (const variant of state.variants) {
+                downloadVariant(variant);
+                await new Promise(r => setTimeout(r, 100)); // Small delay between downloads
+            }
+        });
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            if (state.originalImage) {
+                const maxDisplayWidth = elements.cropContainer.parentElement.clientWidth - 48;
+                state.displayScale = Math.min(1, maxDisplayWidth / state.originalImage.width);
+                elements.sourceCanvas.style.width = (state.originalImage.width * state.displayScale) + 'px';
+                elements.sourceCanvas.style.height = (state.originalImage.height * state.displayScale) + 'px';
+                updateCropUI();
+            }
+        });
+    </script>
+</body>
+</html>

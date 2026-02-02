@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bounding Box Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <style>
+        .cropper-view-box,
+        .cropper-face {
+            border-radius: 0;
+        }
+        .cropper-view-box {
+            outline: 2px solid #10b981;
+            outline-offset: -2px;
+        }
+        .cropper-line {
+            background-color: #10b981;
+        }
+        .cropper-point {
+            background-color: #10b981;
+            width: 10px;
+            height: 10px;
+        }
+        .cropper-point.point-se {
+            width: 12px;
+            height: 12px;
+        }
+        .drop-zone {
+            transition: all 0.2s ease;
+        }
+        .drop-zone.dragover {
+            border-color: #10b981;
+            background-color: rgba(16, 185, 129, 0.1);
+            transform: scale(1.01);
+        }
+        .cropper-container {
+            max-height: 500px !important;
+        }
+        .coord-value {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <div class="inline-flex items-center gap-3 mb-3">
+                <div class="w-11 h-11 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+                    </svg>
+                </div>
+            </div>
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent mb-2">
+                Bounding Box Tool
+            </h1>
+            <p class="text-slate-400 max-w-2xl mx-auto">
+                Draw bounding boxes on images and get normalized coordinates. Load an image by pasting, 
+                dragging, or selecting a file, then click and drag to define your region of interest.
+            </p>
+        </header>
+
+        <!-- Drop Zone (shown when no image) -->
+        <div id="dropZone" class="drop-zone border-2 border-dashed border-slate-600 rounded-2xl p-16 text-center cursor-pointer hover:border-emerald-500 hover:bg-slate-800/30 mb-6">
+            <div class="flex flex-col items-center gap-4">
+                <div class="w-16 h-16 bg-slate-700/50 rounded-2xl flex items-center justify-center">
+                    <svg class="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-lg font-medium text-slate-300">Drop image here or click to browse</p>
+                    <p class="text-sm text-slate-500 mt-1">You can also paste an image from clipboard (Ctrl/Cmd+V)</p>
+                </div>
+                <div class="flex items-center gap-3 text-xs text-slate-600">
+                    <span class="bg-slate-800 px-2 py-1 rounded">JPG</span>
+                    <span class="bg-slate-800 px-2 py-1 rounded">PNG</span>
+                    <span class="bg-slate-800 px-2 py-1 rounded">WebP</span>
+                    <span class="bg-slate-800 px-2 py-1 rounded">GIF</span>
+                </div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" class="hidden">
+        </div>
+
+        <!-- Image Editor (shown when image loaded) -->
+        <div id="editorSection" class="hidden">
+            <!-- Toolbar -->
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <div class="flex items-center gap-2">
+                    <button id="resetBtn" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium py-2 px-4 rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Reset
+                    </button>
+                    <button id="newImageBtn" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium py-2 px-4 rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        New Image
+                    </button>
+                </div>
+                <div id="imageDimensions" class="text-sm text-slate-500"></div>
+            </div>
+
+            <!-- Cropper Container -->
+            <div class="bg-slate-800/50 rounded-xl overflow-hidden mb-6 border border-slate-700/50">
+                <div class="relative max-h-[500px] overflow-hidden">
+                    <img id="cropperImage" class="max-w-full block">
+                </div>
+            </div>
+
+            <!-- Coordinates Output -->
+            <div class="bg-slate-800/60 rounded-xl p-5 border border-slate-700/50">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-slate-200">Bounding Box Coordinates</h3>
+                    <span class="text-xs text-slate-500 bg-slate-700/50 px-2 py-1 rounded">Normalized (0-1)</span>
+                </div>
+
+                <!-- Visual Coordinate Display -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+                    <div class="bg-slate-900/50 rounded-lg p-3">
+                        <div class="text-xs text-slate-500 mb-1">X (Left)</div>
+                        <div id="coordX" class="coord-value text-lg font-semibold text-emerald-400">0.0000</div>
+                    </div>
+                    <div class="bg-slate-900/50 rounded-lg p-3">
+                        <div class="text-xs text-slate-500 mb-1">Y (Top)</div>
+                        <div id="coordY" class="coord-value text-lg font-semibold text-emerald-400">0.0000</div>
+                    </div>
+                    <div class="bg-slate-900/50 rounded-lg p-3">
+                        <div class="text-xs text-slate-500 mb-1">Width</div>
+                        <div id="coordW" class="coord-value text-lg font-semibold text-teal-400">0.0000</div>
+                    </div>
+                    <div class="bg-slate-900/50 rounded-lg p-3">
+                        <div class="text-xs text-slate-500 mb-1">Height</div>
+                        <div id="coordH" class="coord-value text-lg font-semibold text-teal-400">0.0000</div>
+                    </div>
+                </div>
+
+                <!-- Command Line Formats -->
+                <div class="space-y-3">
+                    <!-- XYWH Format -->
+                    <div class="bg-slate-900/70 rounded-lg overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-2 bg-slate-800/50 border-b border-slate-700/50">
+                            <span class="text-xs font-medium text-slate-400">XYWH Format (x, y, width, height)</span>
+                            <button onclick="copyCoords('xywh')" class="copy-btn text-xs text-emerald-400 hover:text-emerald-300 transition-colors">Copy</button>
+                        </div>
+                        <pre id="xywhOutput" class="coord-value p-4 text-sm text-slate-300 overflow-x-auto">--bbox 0.0000,0.0000,0.0000,0.0000</pre>
+                    </div>
+
+                    <!-- XYXY Format -->
+                    <div class="bg-slate-900/70 rounded-lg overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-2 bg-slate-800/50 border-b border-slate-700/50">
+                            <span class="text-xs font-medium text-slate-400">XYXY Format (x1, y1, x2, y2)</span>
+                            <button onclick="copyCoords('xyxy')" class="copy-btn text-xs text-emerald-400 hover:text-emerald-300 transition-colors">Copy</button>
+                        </div>
+                        <pre id="xyxyOutput" class="coord-value p-4 text-sm text-slate-300 overflow-x-auto">--bbox 0.0000,0.0000,0.0000,0.0000</pre>
+                    </div>
+
+                    <!-- Center Format (YOLO style) -->
+                    <div class="bg-slate-900/70 rounded-lg overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-2 bg-slate-800/50 border-b border-slate-700/50">
+                            <span class="text-xs font-medium text-slate-400">Center Format - YOLO (cx, cy, width, height)</span>
+                            <button onclick="copyCoords('center')" class="copy-btn text-xs text-emerald-400 hover:text-emerald-300 transition-colors">Copy</button>
+                        </div>
+                        <pre id="centerOutput" class="coord-value p-4 text-sm text-slate-300 overflow-x-auto">--bbox 0.0000,0.0000,0.0000,0.0000</pre>
+                    </div>
+
+                    <!-- Pixel Coordinates -->
+                    <div class="bg-slate-900/70 rounded-lg overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-2 bg-slate-800/50 border-b border-slate-700/50">
+                            <span class="text-xs font-medium text-slate-400">Pixel Coordinates (x, y, w, h)</span>
+                            <button onclick="copyCoords('pixel')" class="copy-btn text-xs text-emerald-400 hover:text-emerald-300 transition-colors">Copy</button>
+                        </div>
+                        <pre id="pixelOutput" class="coord-value p-4 text-sm text-slate-300 overflow-x-auto">--bbox 0,0,0,0</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span id="toastMessage">Copied!</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const editorSection = document.getElementById('editorSection');
+        const cropperImage = document.getElementById('cropperImage');
+        const resetBtn = document.getElementById('resetBtn');
+        const newImageBtn = document.getElementById('newImageBtn');
+        const imageDimensions = document.getElementById('imageDimensions');
+
+        let cropper = null;
+        let imageWidth = 0;
+        let imageHeight = 0;
+
+        // Coordinate storage
+        let coords = { x: 0, y: 0, w: 0, h: 0 };
+
+        // Click to browse
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                loadImage(e.target.files[0]);
+            }
+        });
+
+        // Drag and drop
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                loadImage(files[0]);
+            }
+        });
+
+        // Paste from clipboard
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        loadImage(file);
+                    }
+                    break;
+                }
+            }
+        });
+
+        // Load image
+        function loadImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    imageWidth = img.naturalWidth;
+                    imageHeight = img.naturalHeight;
+                    imageDimensions.textContent = `${imageWidth} × ${imageHeight} px`;
+
+                    cropperImage.src = e.target.result;
+                    dropZone.classList.add('hidden');
+                    editorSection.classList.remove('hidden');
+
+                    initCropper();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Initialize CropperJS
+        function initCropper() {
+            if (cropper) {
+                cropper.destroy();
+            }
+
+            cropper = new Cropper(cropperImage, {
+                viewMode: 1,
+                dragMode: 'crop',
+                autoCrop: true,
+                autoCropArea: 0.5,
+                responsive: true,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: true,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false,
+                crop: updateCoordinates
+            });
+        }
+
+        // Update coordinates display
+        function updateCoordinates(event) {
+            if (!cropper) return;
+
+            const data = cropper.getData(true);
+            const imageData = cropper.getImageData();
+
+            // Calculate normalized coordinates (0-1)
+            const x = Math.max(0, data.x) / imageData.naturalWidth;
+            const y = Math.max(0, data.y) / imageData.naturalHeight;
+            const w = Math.min(data.width, imageData.naturalWidth - data.x) / imageData.naturalWidth;
+            const h = Math.min(data.height, imageData.naturalHeight - data.y) / imageData.naturalHeight;
+
+            // Clamp values
+            coords.x = Math.min(1, Math.max(0, x));
+            coords.y = Math.min(1, Math.max(0, y));
+            coords.w = Math.min(1 - coords.x, Math.max(0, w));
+            coords.h = Math.min(1 - coords.y, Math.max(0, h));
+
+            // Update visual display
+            document.getElementById('coordX').textContent = coords.x.toFixed(4);
+            document.getElementById('coordY').textContent = coords.y.toFixed(4);
+            document.getElementById('coordW').textContent = coords.w.toFixed(4);
+            document.getElementById('coordH').textContent = coords.h.toFixed(4);
+
+            // XYWH format
+            document.getElementById('xywhOutput').textContent = 
+                `--bbox ${coords.x.toFixed(4)},${coords.y.toFixed(4)},${coords.w.toFixed(4)},${coords.h.toFixed(4)}`;
+
+            // XYXY format (x1, y1, x2, y2)
+            const x2 = coords.x + coords.w;
+            const y2 = coords.y + coords.h;
+            document.getElementById('xyxyOutput').textContent = 
+                `--bbox ${coords.x.toFixed(4)},${coords.y.toFixed(4)},${x2.toFixed(4)},${y2.toFixed(4)}`;
+
+            // Center format (YOLO style)
+            const cx = coords.x + coords.w / 2;
+            const cy = coords.y + coords.h / 2;
+            document.getElementById('centerOutput').textContent = 
+                `--bbox ${cx.toFixed(4)},${cy.toFixed(4)},${coords.w.toFixed(4)},${coords.h.toFixed(4)}`;
+
+            // Pixel coordinates
+            const px = Math.round(coords.x * imageWidth);
+            const py = Math.round(coords.y * imageHeight);
+            const pw = Math.round(coords.w * imageWidth);
+            const ph = Math.round(coords.h * imageHeight);
+            document.getElementById('pixelOutput').textContent = 
+                `--bbox ${px},${py},${pw},${ph}`;
+        }
+
+        // Copy coordinates
+        function copyCoords(format) {
+            let text = '';
+            switch (format) {
+                case 'xywh':
+                    text = document.getElementById('xywhOutput').textContent;
+                    break;
+                case 'xyxy':
+                    text = document.getElementById('xyxyOutput').textContent;
+                    break;
+                case 'center':
+                    text = document.getElementById('centerOutput').textContent;
+                    break;
+                case 'pixel':
+                    text = document.getElementById('pixelOutput').textContent;
+                    break;
+            }
+
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Coordinates copied!');
+            });
+        }
+
+        // Reset crop box
+        resetBtn.addEventListener('click', () => {
+            if (cropper) {
+                cropper.reset();
+            }
+        });
+
+        // New image
+        newImageBtn.addEventListener('click', () => {
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
+            cropperImage.src = '';
+            fileInput.value = '';
+            editorSection.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            coords = { x: 0, y: 0, w: 0, h: 0 };
+        });
+
+        // Toast notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 2000);
+        }
+
+        // Make copyCoords globally available
+        window.copyCoords = copyCoords;
+    </script>
+</body>
+</html>

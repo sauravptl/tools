@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Card Creator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .upload-zone {
+            border: 2px dashed #cbd5e1;
+            transition: all 0.3s ease;
+        }
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: #6366f1;
+            background-color: #eef2ff;
+        }
+        .preview-container {
+            background-image: linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
+                              linear-gradient(-45deg, #f0f0f0 25%, transparent 25%),
+                              linear-gradient(45deg, transparent 75%, #f0f0f0 75%),
+                              linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        .platform-btn {
+            transition: all 0.2s ease;
+        }
+        .platform-btn.active {
+            transform: scale(1.02);
+            box-shadow: 0 0 0 2px #6366f1;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: #e2e8f0;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .canvas-wrapper {
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+        }
+        .canvas-wrapper:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Social Media Card Creator</h1>
+            <p class="text-gray-600">Create perfectly sized images for any social platform</p>
+        </header>
+
+        <div class="grid lg:grid-cols-2 gap-8">
+            <!-- Left Panel: Controls -->
+            <div class="space-y-6">
+                <!-- Upload Section -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">1. Upload Image</h2>
+                    <div id="uploadZone" class="upload-zone rounded-lg p-8 text-center cursor-pointer">
+                        <input type="file" id="imageInput" accept="image/*" class="hidden">
+                        <div id="uploadContent">
+                            <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <p class="text-gray-600 mb-2">Drag & drop an image here, or click to select</p>
+                            <p class="text-sm text-gray-400">Supports JPG, PNG, WebP</p>
+                        </div>
+                        <div id="uploadedInfo" class="hidden">
+                            <p class="text-green-600 font-medium mb-1">✓ Image uploaded</p>
+                            <p id="imageName" class="text-sm text-gray-500"></p>
+                            <button id="changeImageBtn" class="mt-2 text-sm text-indigo-600 hover:text-indigo-800">Change image</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Platform Selection -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">2. Select Platform</h2>
+                    <div id="platformGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <!-- Platforms will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Customization -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">3. Customize</h2>
+                    
+                    <!-- Background Color -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Background Color</label>
+                        <div class="flex items-center gap-3">
+                            <input type="color" id="bgColor" value="#ffffff" class="w-12 h-12 rounded-lg cursor-pointer border-2 border-gray-200">
+                            <div class="flex gap-2">
+                                <button data-color="#ffffff" class="color-preset w-8 h-8 rounded-full border-2 border-gray-200 bg-white hover:scale-110 transition-transform"></button>
+                                <button data-color="#000000" class="color-preset w-8 h-8 rounded-full border-2 border-gray-200 bg-black hover:scale-110 transition-transform"></button>
+                                <button data-color="#f3f4f6" class="color-preset w-8 h-8 rounded-full border-2 border-gray-200 bg-gray-100 hover:scale-110 transition-transform"></button>
+                                <button data-color="#fef3c7" class="color-preset w-8 h-8 rounded-full border-2 border-gray-200 bg-amber-100 hover:scale-110 transition-transform"></button>
+                                <button data-color="#dbeafe" class="color-preset w-8 h-8 rounded-full border-2 border-gray-200 bg-blue-100 hover:scale-110 transition-transform"></button>
+                                <button data-color="#dcfce7" class="color-preset w-8 h-8 rounded-full border-2 border-gray-200 bg-green-100 hover:scale-110 transition-transform"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Zoom Control -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Zoom: <span id="zoomValue">100</span>%
+                        </label>
+                        <div class="flex items-center gap-3">
+                            <button id="zoomOut" class="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600 font-bold">−</button>
+                            <input type="range" id="zoomSlider" min="10" max="300" value="100" class="flex-1">
+                            <button id="zoomIn" class="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600 font-bold">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Position Reset -->
+                    <div class="flex gap-3">
+                        <button id="centerBtn" class="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 text-sm font-medium transition-colors">
+                            Center Image
+                        </button>
+                        <button id="fitBtn" class="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 text-sm font-medium transition-colors">
+                            Fit to Frame
+                        </button>
+                        <button id="fillBtn" class="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 text-sm font-medium transition-colors">
+                            Fill Frame
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Download -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">4. Download</h2>
+                    <button id="downloadBtn" disabled class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        <span id="downloadText">Download Card</span>
+                    </button>
+                    <p id="dimensionInfo" class="text-center text-sm text-gray-500 mt-2"></p>
+                </div>
+            </div>
+
+            <!-- Right Panel: Preview -->
+            <div class="lg:sticky lg:top-8 h-fit">
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800">Preview</h2>
+                        <span id="previewDimensions" class="text-sm text-gray-500"></span>
+                    </div>
+                    
+                    <div class="preview-container rounded-lg flex items-center justify-center p-4 min-h-[300px]">
+                        <div id="canvasWrapper" class="canvas-wrapper rounded-lg shadow-lg" style="display: none;">
+                            <canvas id="previewCanvas"></canvas>
+                        </div>
+                        <div id="emptyState" class="text-center py-16">
+                            <svg class="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <p class="text-gray-400">Upload an image to get started</p>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-400 mt-3 text-center">Drag the image to reposition • Scroll to zoom</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const platforms = [
+            { id: 'twitter-post', name: 'Twitter Post', width: 1200, height: 675, ratio: '16:9' },
+            { id: 'twitter-header', name: 'Twitter Header', width: 1500, height: 500, ratio: '3:1' },
+            { id: 'facebook-post', name: 'Facebook Post', width: 1200, height: 630, ratio: '1.91:1' },
+            { id: 'facebook-cover', name: 'Facebook Cover', width: 820, height: 312, ratio: '2.63:1' },
+            { id: 'instagram-square', name: 'Instagram Square', width: 1080, height: 1080, ratio: '1:1' },
+            { id: 'instagram-portrait', name: 'Instagram Portrait', width: 1080, height: 1350, ratio: '4:5' },
+            { id: 'instagram-story', name: 'Instagram Story', width: 1080, height: 1920, ratio: '9:16' },
+            { id: 'linkedin-post', name: 'LinkedIn Post', width: 1200, height: 627, ratio: '1.91:1' },
+            { id: 'linkedin-cover', name: 'LinkedIn Cover', width: 1584, height: 396, ratio: '4:1' },
+            { id: 'substack', name: 'Substack', width: 1456, height: 816, ratio: '16:9' },
+            { id: 'youtube-thumb', name: 'YouTube Thumbnail', width: 1280, height: 720, ratio: '16:9' },
+            { id: 'pinterest', name: 'Pinterest Pin', width: 1000, height: 1500, ratio: '2:3' },
+            { id: 'og-image', name: 'OG Image', width: 1200, height: 630, ratio: '1.91:1' },
+            { id: 'custom-square', name: 'Square (1:1)', width: 1200, height: 1200, ratio: '1:1' },
+            { id: 'custom-wide', name: 'Wide (2:1)', width: 1200, height: 600, ratio: '2:1' },
+        ];
+
+        let state = {
+            image: null,
+            imageName: '',
+            platform: platforms[0],
+            bgColor: '#ffffff',
+            zoom: 100,
+            offsetX: 0,
+            offsetY: 0,
+            isDragging: false,
+            dragStartX: 0,
+            dragStartY: 0,
+            initialOffsetX: 0,
+            initialOffsetY: 0
+        };
+
+        const uploadZone = document.getElementById('uploadZone');
+        const imageInput = document.getElementById('imageInput');
+        const uploadContent = document.getElementById('uploadContent');
+        const uploadedInfo = document.getElementById('uploadedInfo');
+        const imageName = document.getElementById('imageName');
+        const changeImageBtn = document.getElementById('changeImageBtn');
+        const platformGrid = document.getElementById('platformGrid');
+        const bgColor = document.getElementById('bgColor');
+        const zoomSlider = document.getElementById('zoomSlider');
+        const zoomValue = document.getElementById('zoomValue');
+        const zoomIn = document.getElementById('zoomIn');
+        const zoomOut = document.getElementById('zoomOut');
+        const centerBtn = document.getElementById('centerBtn');
+        const fitBtn = document.getElementById('fitBtn');
+        const fillBtn = document.getElementById('fillBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const downloadText = document.getElementById('downloadText');
+        const dimensionInfo = document.getElementById('dimensionInfo');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        const emptyState = document.getElementById('emptyState');
+        const previewDimensions = document.getElementById('previewDimensions');
+        const colorPresets = document.querySelectorAll('.color-preset');
+
+        function initPlatforms() {
+            platformGrid.innerHTML = platforms.map(p => `
+                <button data-id="${p.id}" class="platform-btn p-3 rounded-lg border-2 border-gray-200 hover:border-indigo-300 text-left transition-all ${p.id === state.platform.id ? 'active border-indigo-500 bg-indigo-50' : ''}">
+                    <div class="font-medium text-gray-800 text-sm">${p.name}</div>
+                    <div class="text-xs text-gray-500">${p.width}×${p.height}</div>
+                </button>
+            `).join('');
+
+            platformGrid.querySelectorAll('.platform-btn').forEach(btn => {
+                btn.addEventListener('click', () => selectPlatform(btn.dataset.id));
+            });
+
+            updateDimensionInfo();
+        }
+
+        function selectPlatform(id) {
+            state.platform = platforms.find(p => p.id === id);
+            platformGrid.querySelectorAll('.platform-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.id === id);
+                btn.classList.toggle('border-indigo-500', btn.dataset.id === id);
+                btn.classList.toggle('bg-indigo-50', btn.dataset.id === id);
+            });
+            updateDimensionInfo();
+            if (state.image) {
+                fitToFrame();
+            }
+        }
+
+        function updateDimensionInfo() {
+            const p = state.platform;
+            dimensionInfo.textContent = `Output: ${p.width}×${p.height}px (${p.ratio})`;
+            previewDimensions.textContent = `${p.width}×${p.height}`;
+            downloadText.textContent = `Download ${p.name}`;
+        }
+
+        uploadZone.addEventListener('click', () => imageInput.click());
+        changeImageBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            imageInput.click();
+        });
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-over');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('drag-over');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                loadImage(file);
+            }
+        });
+
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                loadImage(file);
+            }
+        });
+
+        function loadImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    state.image = img;
+                    state.imageName = file.name;
+                    uploadContent.classList.add('hidden');
+                    uploadedInfo.classList.remove('hidden');
+                    imageName.textContent = `${file.name} (${img.width}×${img.height})`;
+                    downloadBtn.disabled = false;
+                    emptyState.style.display = 'none';
+                    canvasWrapper.style.display = 'block';
+                    fitToFrame();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        bgColor.addEventListener('input', (e) => {
+            state.bgColor = e.target.value;
+            render();
+        });
+
+        colorPresets.forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.bgColor = btn.dataset.color;
+                bgColor.value = btn.dataset.color;
+                render();
+            });
+        });
+
+        zoomSlider.addEventListener('input', (e) => {
+            state.zoom = parseInt(e.target.value);
+            zoomValue.textContent = state.zoom;
+            render();
+        });
+
+        zoomIn.addEventListener('click', () => {
+            state.zoom = Math.min(300, state.zoom + 10);
+            zoomSlider.value = state.zoom;
+            zoomValue.textContent = state.zoom;
+            render();
+        });
+
+        zoomOut.addEventListener('click', () => {
+            state.zoom = Math.max(10, state.zoom - 10);
+            zoomSlider.value = state.zoom;
+            zoomValue.textContent = state.zoom;
+            render();
+        });
+
+        centerBtn.addEventListener('click', () => {
+            state.offsetX = 0;
+            state.offsetY = 0;
+            render();
+        });
+
+        fitBtn.addEventListener('click', fitToFrame);
+        fillBtn.addEventListener('click', fillFrame);
+
+        function fitToFrame() {
+            if (!state.image) return;
+            const p = state.platform;
+            const imgRatio = state.image.width / state.image.height;
+            const canvasRatio = p.width / p.height;
+
+            if (imgRatio > canvasRatio) {
+                state.zoom = Math.round((p.width / state.image.width) * 100);
+            } else {
+                state.zoom = Math.round((p.height / state.image.height) * 100);
+            }
+            state.zoom = Math.max(10, Math.min(300, state.zoom));
+            state.offsetX = 0;
+            state.offsetY = 0;
+            zoomSlider.value = state.zoom;
+            zoomValue.textContent = state.zoom;
+            render();
+        }
+
+        function fillFrame() {
+            if (!state.image) return;
+            const p = state.platform;
+            const imgRatio = state.image.width / state.image.height;
+            const canvasRatio = p.width / p.height;
+
+            if (imgRatio > canvasRatio) {
+                state.zoom = Math.round((p.height / state.image.height) * 100);
+            } else {
+                state.zoom = Math.round((p.width / state.image.width) * 100);
+            }
+            state.zoom = Math.max(10, Math.min(300, state.zoom));
+            state.offsetX = 0;
+            state.offsetY = 0;
+            zoomSlider.value = state.zoom;
+            zoomValue.textContent = state.zoom;
+            render();
+        }
+
+        canvasWrapper.addEventListener('mousedown', (e) => {
+            if (!state.image) return;
+            state.isDragging = true;
+            state.dragStartX = e.clientX;
+            state.dragStartY = e.clientY;
+            state.initialOffsetX = state.offsetX;
+            state.initialOffsetY = state.offsetY;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!state.isDragging) return;
+            const scale = getPreviewScale();
+            state.offsetX = state.initialOffsetX + (e.clientX - state.dragStartX) / scale;
+            state.offsetY = state.initialOffsetY + (e.clientY - state.dragStartY) / scale;
+            render();
+        });
+
+        document.addEventListener('mouseup', () => {
+            state.isDragging = false;
+        });
+
+        canvasWrapper.addEventListener('wheel', (e) => {
+            if (!state.image) return;
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -5 : 5;
+            state.zoom = Math.max(10, Math.min(300, state.zoom + delta));
+            zoomSlider.value = state.zoom;
+            zoomValue.textContent = state.zoom;
+            render();
+        }, { passive: false });
+
+        function getPreviewScale() {
+            const maxWidth = 500;
+            const maxHeight = 500;
+            const p = state.platform;
+            const scaleW = maxWidth / p.width;
+            const scaleH = maxHeight / p.height;
+            return Math.min(scaleW, scaleH, 1);
+        }
+
+        function render() {
+            if (!state.image) return;
+
+            const p = state.platform;
+            const scale = getPreviewScale();
+
+            previewCanvas.width = p.width;
+            previewCanvas.height = p.height;
+            previewCanvas.style.width = `${p.width * scale}px`;
+            previewCanvas.style.height = `${p.height * scale}px`;
+
+            const ctx = previewCanvas.getContext('2d');
+            ctx.fillStyle = state.bgColor;
+            ctx.fillRect(0, 0, p.width, p.height);
+
+            const imgW = state.image.width * (state.zoom / 100);
+            const imgH = state.image.height * (state.zoom / 100);
+            const x = (p.width - imgW) / 2 + state.offsetX;
+            const y = (p.height - imgH) / 2 + state.offsetY;
+
+            ctx.drawImage(state.image, x, y, imgW, imgH);
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            if (!state.image) return;
+
+            const p = state.platform;
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = p.width;
+            exportCanvas.height = p.height;
+
+            const ctx = exportCanvas.getContext('2d');
+            ctx.fillStyle = state.bgColor;
+            ctx.fillRect(0, 0, p.width, p.height);
+
+            const imgW = state.image.width * (state.zoom / 100);
+            const imgH = state.image.height * (state.zoom / 100);
+            const x = (p.width - imgW) / 2 + state.offsetX;
+            const y = (p.height - imgH) / 2 + state.offsetY;
+
+            ctx.drawImage(state.image, x, y, imgW, imgH);
+
+            const link = document.createElement('a');
+            link.download = `${p.id}-${p.width}x${p.height}.png`;
+            link.href = exportCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        initPlatforms();
+    </script>
+</body>
+</html>

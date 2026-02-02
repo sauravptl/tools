@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Cropper - Avatar Creator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .crop-container {
+            position: relative;
+            overflow: hidden;
+            user-select: none;
+        }
+        .crop-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .crop-box {
+            position: absolute;
+            border: 2px solid #22d3ee;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+            cursor: move;
+            pointer-events: auto;
+        }
+        .crop-handle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #22d3ee;
+            border: 2px solid white;
+            border-radius: 2px;
+        }
+        .crop-handle-nw { top: -6px; left: -6px; cursor: nw-resize; }
+        .crop-handle-ne { top: -6px; right: -6px; cursor: ne-resize; }
+        .crop-handle-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+        .crop-handle-se { bottom: -6px; right: -6px; cursor: se-resize; }
+        .crop-handle-n { top: -6px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+        .crop-handle-s { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+        .crop-handle-w { top: 50%; left: -6px; transform: translateY(-50%); cursor: w-resize; }
+        .crop-handle-e { top: 50%; right: -6px; transform: translateY(-50%); cursor: e-resize; }
+        .crop-guides {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .crop-guides::before,
+        .crop-guides::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .crop-guides::before {
+            top: 33.33%; bottom: 33.33%; left: 0; right: 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .crop-guides::after {
+            left: 33.33%; right: 33.33%; top: 0; bottom: 0;
+            border-left: 1px solid rgba(255, 255, 255, 0.5);
+            border-right: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .drop-zone {
+            transition: all 0.2s ease;
+        }
+        .drop-zone.dragover {
+            border-color: #22d3ee;
+            background-color: rgba(34, 211, 238, 0.1);
+            transform: scale(1.01);
+        }
+        .checkered-bg {
+            background-image:
+                linear-gradient(45deg, #374151 25%, transparent 25%),
+                linear-gradient(-45deg, #374151 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #374151 75%),
+                linear-gradient(-45deg, transparent 75%, #374151 75%);
+            background-size: 12px 12px;
+            background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+            background-color: #1f2937;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900 text-white">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <div class="inline-flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-violet-400 to-fuchsia-500 rounded-xl flex items-center justify-center">
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+            </div>
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent mb-3">
+                Image Cropper
+            </h1>
+            <p class="text-slate-400 max-w-2xl mx-auto">
+                Create perfect avatars and profile pictures. Click, drag & drop, or paste an image, 
+                then crop to your desired aspect ratio. Export as JPEG for easy integration.
+            </p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left: Crop Area -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Drop Zone / Crop Container -->
+                <div class="bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-700/50">
+                    <div class="bg-slate-700/50 px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+                        <h3 class="font-medium text-slate-300">Image Editor</h3>
+                        <div class="flex items-center gap-2">
+                            <button id="zoomOutBtn" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-600 rounded transition-colors disabled:opacity-50" disabled>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+                            </button>
+                            <span id="zoomLevel" class="text-xs text-slate-500 w-12 text-center">100%</span>
+                            <button id="zoomInBtn" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-600 rounded transition-colors disabled:opacity-50" disabled>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Drop Zone -->
+                    <div id="dropZone" class="drop-zone p-8 min-h-[400px] flex items-center justify-center cursor-pointer">
+                        <div id="dropContent" class="text-center">
+                            <svg class="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <p class="text-lg font-medium text-slate-400 mb-2">Drop image here</p>
+                            <p class="text-slate-500 text-sm mb-4">or click to browse • paste from clipboard</p>
+                            <p class="text-slate-600 text-xs">Supports JPG, PNG, GIF, WebP</p>
+                        </div>
+                        <input type="file" id="fileInput" accept="image/*" class="hidden">
+                    </div>
+
+                    <!-- Crop Container -->
+                    <div id="cropWrapper" class="hidden p-4 bg-slate-900">
+                        <div id="cropContainer" class="crop-container relative mx-auto">
+                            <img id="sourceImage" class="block max-w-full" alt="Source">
+                            <div class="crop-overlay">
+                                <div id="cropBox" class="crop-box">
+                                    <div class="crop-guides"></div>
+                                    <div class="crop-handle crop-handle-nw" data-handle="nw"></div>
+                                    <div class="crop-handle crop-handle-ne" data-handle="ne"></div>
+                                    <div class="crop-handle crop-handle-sw" data-handle="sw"></div>
+                                    <div class="crop-handle crop-handle-se" data-handle="se"></div>
+                                    <div class="crop-handle crop-handle-n" data-handle="n"></div>
+                                    <div class="crop-handle crop-handle-s" data-handle="s"></div>
+                                    <div class="crop-handle crop-handle-w" data-handle="w"></div>
+                                    <div class="crop-handle crop-handle-e" data-handle="e"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div id="controlsPanel" class="hidden bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <button id="resetCropBtn" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            Reset Crop
+                        </button>
+                        <button id="changeImageBtn" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            Change Image
+                        </button>
+                        <div class="flex-1"></div>
+                        <button id="applyCropBtn" class="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white font-medium py-2.5 px-6 rounded-lg transition-all shadow-lg hover:shadow-violet-500/25">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Apply Crop
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Settings & Preview -->
+            <div class="space-y-6">
+                <!-- Aspect Ratio -->
+                <div class="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
+                    <h3 class="font-medium text-slate-200 mb-4">Aspect Ratio</h3>
+                    <div class="grid grid-cols-3 gap-2 mb-4">
+                        <button data-ratio="1:1" class="ratio-btn aspect-square bg-violet-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center">1:1</button>
+                        <button data-ratio="4:3" class="ratio-btn bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium rounded-lg transition-colors py-3">4:3</button>
+                        <button data-ratio="16:9" class="ratio-btn bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium rounded-lg transition-colors py-3">16:9</button>
+                        <button data-ratio="3:4" class="ratio-btn bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium rounded-lg transition-colors py-3">3:4</button>
+                        <button data-ratio="9:16" class="ratio-btn bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium rounded-lg transition-colors py-3">9:16</button>
+                        <button data-ratio="free" class="ratio-btn bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium rounded-lg transition-colors py-3">Free</button>
+                    </div>
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <label class="block text-xs text-slate-500 mb-1">Width</label>
+                            <input type="number" id="customWidth" min="1" max="4096" value="400" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-violet-500">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs text-slate-500 mb-1">Height</label>
+                            <input type="number" id="customHeight" min="1" max="4096" value="400" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-violet-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Output Settings -->
+                <div class="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
+                    <h3 class="font-medium text-slate-200 mb-4">Output Settings</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-slate-400 mb-2">Format</label>
+                            <select id="outputFormat" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-violet-500">
+                                <option value="jpeg">JPEG</option>
+                                <option value="png">PNG</option>
+                                <option value="webp">WebP</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-slate-400 mb-2">Quality: <span id="qualityValue" class="text-violet-400">90%</span></label>
+                            <input type="range" id="qualitySlider" min="10" max="100" value="90" class="w-full accent-violet-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview -->
+                <div class="bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-700/50">
+                    <div class="bg-slate-700/50 px-4 py-3 border-b border-slate-700">
+                        <h3 class="font-medium text-slate-300">Preview</h3>
+                    </div>
+                    <div class="p-4">
+                        <div id="previewContainer" class="checkered-bg rounded-xl flex items-center justify-center min-h-[200px] overflow-hidden">
+                            <p id="previewPlaceholder" class="text-slate-600 text-sm">Crop preview will appear here</p>
+                            <img id="previewImage" class="hidden max-w-full max-h-[200px] rounded" alt="Preview">
+                        </div>
+                        <p id="previewInfo" class="text-xs text-slate-500 text-center mt-3">-</p>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="space-y-3">
+                    <button id="downloadBtn" disabled class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium py-3 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Download Image
+                    </button>
+                    <button id="copyDataUrlBtn" disabled class="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                        Copy Data URL
+                    </button>
+                </div>
+
+                <!-- Form Sync -->
+                <div class="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/50">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-medium text-slate-200">Form Sync</h3>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="syncEnabled" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-600 peer-focus:ring-2 peer-focus:ring-violet-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-600"></div>
+                        </label>
+                    </div>
+                    <p class="text-xs text-slate-500 mb-3">Auto-sync cropped image to a form input field</p>
+                    <input type="text" id="syncSelector" placeholder="#avatar-input or .profile-pic" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-violet-500">
+                    <div id="syncStatus" class="hidden mt-3 text-xs text-emerald-400 flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                        Synced to form input
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Demo Form Section -->
+        <div class="mt-10 bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50">
+            <h3 class="font-medium text-slate-200 mb-4">Demo Form Integration</h3>
+            <p class="text-sm text-slate-400 mb-4">Enable Form Sync above with selector <code class="bg-slate-700 px-1.5 py-0.5 rounded">#demo-avatar</code> to test the integration.</p>
+            <div class="flex items-center gap-4">
+                <div class="w-20 h-20 rounded-full bg-slate-700 overflow-hidden flex items-center justify-center">
+                    <img id="demoAvatarPreview" class="hidden w-full h-full object-cover" alt="Avatar">
+                    <svg id="demoAvatarPlaceholder" class="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                </div>
+                <div class="flex-1">
+                    <label class="block text-sm text-slate-400 mb-1">Avatar Data URL</label>
+                    <input type="text" id="demo-avatar" readonly placeholder="Cropped image data URL will appear here..." class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-xs text-slate-400 font-mono truncate">
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                <span id="toastMessage">Success!</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const dropZone = document.getElementById('dropZone');
+        const dropContent = document.getElementById('dropContent');
+        const fileInput = document.getElementById('fileInput');
+        const cropWrapper = document.getElementById('cropWrapper');
+        const cropContainer = document.getElementById('cropContainer');
+        const sourceImage = document.getElementById('sourceImage');
+        const cropBox = document.getElementById('cropBox');
+        const controlsPanel = document.getElementById('controlsPanel');
+        const resetCropBtn = document.getElementById('resetCropBtn');
+        const changeImageBtn = document.getElementById('changeImageBtn');
+        const applyCropBtn = document.getElementById('applyCropBtn');
+        const ratioButtons = document.querySelectorAll('.ratio-btn');
+        const customWidth = document.getElementById('customWidth');
+        const customHeight = document.getElementById('customHeight');
+        const outputFormat = document.getElementById('outputFormat');
+        const qualitySlider = document.getElementById('qualitySlider');
+        const qualityValue = document.getElementById('qualityValue');
+        const previewImage = document.getElementById('previewImage');
+        const previewPlaceholder = document.getElementById('previewPlaceholder');
+        const previewInfo = document.getElementById('previewInfo');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const copyDataUrlBtn = document.getElementById('copyDataUrlBtn');
+        const syncEnabled = document.getElementById('syncEnabled');
+        const syncSelector = document.getElementById('syncSelector');
+        const syncStatus = document.getElementById('syncStatus');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const zoomLevel = document.getElementById('zoomLevel');
+
+        // State
+        let imageLoaded = false;
+        let imgWidth = 0;
+        let imgHeight = 0;
+        let displayWidth = 0;
+        let displayHeight = 0;
+        let cropData = { x: 0, y: 0, width: 100, height: 100 };
+        let aspectRatio = 1;
+        let freeAspect = false;
+        let isDragging = false;
+        let isResizing = false;
+        let activeHandle = null;
+        let startX = 0;
+        let startY = 0;
+        let startCrop = {};
+        let croppedDataUrl = '';
+        let zoom = 1;
+
+        // Initialize
+        function init() {
+            // Drag and drop
+            dropZone.addEventListener('click', () => fileInput.click());
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+            dropZone.addEventListener('drop', handleDrop);
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) loadImage(e.target.files[0]);
+            });
+
+            // Paste from clipboard
+            document.addEventListener('paste', handlePaste);
+
+            // Crop box interactions
+            cropBox.addEventListener('mousedown', startDrag);
+            document.querySelectorAll('.crop-handle').forEach(handle => {
+                handle.addEventListener('mousedown', startResize);
+            });
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', stopInteraction);
+
+            // Touch support
+            cropBox.addEventListener('touchstart', startDrag, { passive: false });
+            document.querySelectorAll('.crop-handle').forEach(handle => {
+                handle.addEventListener('touchstart', startResize, { passive: false });
+            });
+            document.addEventListener('touchmove', handleMouseMove, { passive: false });
+            document.addEventListener('touchend', stopInteraction);
+
+            // Controls
+            resetCropBtn.addEventListener('click', resetCrop);
+            changeImageBtn.addEventListener('click', () => {
+                dropZone.classList.remove('hidden');
+                dropContent.classList.remove('hidden');
+                cropWrapper.classList.add('hidden');
+                controlsPanel.classList.add('hidden');
+                imageLoaded = false;
+                zoomInBtn.disabled = true;
+                zoomOutBtn.disabled = true;
+            });
+            applyCropBtn.addEventListener('click', applyCrop);
+
+            // Ratio buttons
+            ratioButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    ratioButtons.forEach(b => {
+                        b.classList.remove('bg-violet-600', 'text-white');
+                        b.classList.add('bg-slate-700', 'text-slate-300');
+                    });
+                    btn.classList.add('bg-violet-600', 'text-white');
+                    btn.classList.remove('bg-slate-700', 'text-slate-300');
+
+                    const ratio = btn.dataset.ratio;
+                    if (ratio === 'free') {
+                        freeAspect = true;
+                    } else {
+                        freeAspect = false;
+                        const [w, h] = ratio.split(':').map(Number);
+                        aspectRatio = w / h;
+                        customWidth.value = Math.round(customHeight.value * aspectRatio);
+                    }
+                    if (imageLoaded) adjustCropToRatio();
+                });
+            });
+
+            // Custom dimensions
+            customWidth.addEventListener('input', () => {
+                if (!freeAspect) {
+                    customHeight.value = Math.round(customWidth.value / aspectRatio);
+                }
+            });
+            customHeight.addEventListener('input', () => {
+                if (!freeAspect) {
+                    customWidth.value = Math.round(customHeight.value * aspectRatio);
+                }
+            });
+
+            // Quality slider
+            qualitySlider.addEventListener('input', () => {
+                qualityValue.textContent = qualitySlider.value + '%';
+            });
+
+            // Download
+            downloadBtn.addEventListener('click', () => {
+                if (!croppedDataUrl) return;
+                const format = outputFormat.value;
+                const ext = format === 'jpeg' ? 'jpg' : format;
+                const a = document.createElement('a');
+                a.href = croppedDataUrl;
+                a.download = `cropped-avatar.${ext}`;
+                a.click();
+            });
+
+            // Copy data URL
+            copyDataUrlBtn.addEventListener('click', () => {
+                if (!croppedDataUrl) return;
+                navigator.clipboard.writeText(croppedDataUrl).then(() => {
+                    showToast('Data URL copied!');
+                });
+            });
+
+            // Zoom
+            zoomInBtn.addEventListener('click', () => setZoom(zoom + 0.25));
+            zoomOutBtn.addEventListener('click', () => setZoom(zoom - 0.25));
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                loadImage(file);
+            }
+        }
+
+        function handlePaste(e) {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) loadImage(file);
+                    break;
+                }
+            }
+        }
+
+        function loadImage(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    imgWidth = img.width;
+                    imgHeight = img.height;
+
+                    sourceImage.src = e.target.result;
+                    dropZone.classList.add('hidden');
+                    dropContent.classList.add('hidden');
+                    cropWrapper.classList.remove('hidden');
+                    controlsPanel.classList.remove('hidden');
+
+                    // Calculate display size
+                    const maxWidth = Math.min(800, window.innerWidth - 100);
+                    const maxHeight = 500;
+                    const scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight, 1);
+                    displayWidth = imgWidth * scale;
+                    displayHeight = imgHeight * scale;
+                    zoom = 1;
+
+                    sourceImage.style.width = displayWidth + 'px';
+                    sourceImage.style.height = displayHeight + 'px';
+                    cropContainer.style.width = displayWidth + 'px';
+                    cropContainer.style.height = displayHeight + 'px';
+
+                    imageLoaded = true;
+                    zoomInBtn.disabled = false;
+                    zoomOutBtn.disabled = false;
+                    zoomLevel.textContent = '100%';
+
+                    resetCrop();
+                    showToast('Image loaded');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function setZoom(newZoom) {
+            newZoom = Math.max(0.5, Math.min(3, newZoom));
+            zoom = newZoom;
+            zoomLevel.textContent = Math.round(zoom * 100) + '%';
+
+            const newDisplayWidth = displayWidth * zoom;
+            const newDisplayHeight = displayHeight * zoom;
+            sourceImage.style.width = newDisplayWidth + 'px';
+            sourceImage.style.height = newDisplayHeight + 'px';
+            cropContainer.style.width = newDisplayWidth + 'px';
+            cropContainer.style.height = newDisplayHeight + 'px';
+
+            // Scale crop box
+            updateCropBoxDisplay();
+        }
+
+        function resetCrop() {
+            if (!imageLoaded) return;
+            const currentDisplayW = displayWidth * zoom;
+            const currentDisplayH = displayHeight * zoom;
+
+            if (freeAspect) {
+                cropData = { x: 0, y: 0, width: currentDisplayW, height: currentDisplayH };
+            } else {
+                const cropWidth = Math.min(currentDisplayW, currentDisplayH * aspectRatio);
+                const cropHeight = cropWidth / aspectRatio;
+                cropData = {
+                    x: (currentDisplayW - cropWidth) / 2,
+                    y: (currentDisplayH - cropHeight) / 2,
+                    width: cropWidth,
+                    height: cropHeight
+                };
+            }
+            updateCropBoxDisplay();
+        }
+
+        function adjustCropToRatio() {
+            if (freeAspect) return;
+            const currentDisplayW = displayWidth * zoom;
+            const currentDisplayH = displayHeight * zoom;
+
+            let newWidth = cropData.width;
+            let newHeight = newWidth / aspectRatio;
+            if (newHeight > currentDisplayH) {
+                newHeight = currentDisplayH;
+                newWidth = newHeight * aspectRatio;
+            }
+            if (newWidth > currentDisplayW) {
+                newWidth = currentDisplayW;
+                newHeight = newWidth / aspectRatio;
+            }
+
+            cropData.width = newWidth;
+            cropData.height = newHeight;
+            cropData.x = Math.min(cropData.x, currentDisplayW - newWidth);
+            cropData.y = Math.min(cropData.y, currentDisplayH - newHeight);
+            cropData.x = Math.max(0, cropData.x);
+            cropData.y = Math.max(0, cropData.y);
+
+            updateCropBoxDisplay();
+        }
+
+        function updateCropBoxDisplay() {
+            cropBox.style.left = cropData.x + 'px';
+            cropBox.style.top = cropData.y + 'px';
+            cropBox.style.width = cropData.width + 'px';
+            cropBox.style.height = cropData.height + 'px';
+        }
+
+        function getEventCoords(e) {
+            if (e.touches && e.touches.length > 0) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        function startDrag(e) {
+            if (e.target.classList.contains('crop-handle')) return;
+            e.preventDefault();
+            isDragging = true;
+            const coords = getEventCoords(e);
+            startX = coords.x;
+            startY = coords.y;
+            startCrop = { ...cropData };
+        }
+
+        function startResize(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            isResizing = true;
+            activeHandle = e.target.dataset.handle;
+            const coords = getEventCoords(e);
+            startX = coords.x;
+            startY = coords.y;
+            startCrop = { ...cropData };
+        }
+
+        function handleMouseMove(e) {
+            if (!isDragging && !isResizing) return;
+            e.preventDefault();
+
+            const coords = getEventCoords(e);
+            const dx = coords.x - startX;
+            const dy = coords.y - startY;
+            const currentDisplayW = displayWidth * zoom;
+            const currentDisplayH = displayHeight * zoom;
+
+            if (isDragging) {
+                cropData.x = Math.max(0, Math.min(currentDisplayW - cropData.width, startCrop.x + dx));
+                cropData.y = Math.max(0, Math.min(currentDisplayH - cropData.height, startCrop.y + dy));
+            } else if (isResizing) {
+                let newX = startCrop.x;
+                let newY = startCrop.y;
+                let newW = startCrop.width;
+                let newH = startCrop.height;
+
+                const minSize = 20;
+
+                if (activeHandle.includes('e')) newW = Math.max(minSize, startCrop.width + dx);
+                if (activeHandle.includes('w')) {
+                    newW = Math.max(minSize, startCrop.width - dx);
+                    newX = startCrop.x + startCrop.width - newW;
+                }
+                if (activeHandle.includes('s')) newH = Math.max(minSize, startCrop.height + dy);
+                if (activeHandle.includes('n')) {
+                    newH = Math.max(minSize, startCrop.height - dy);
+                    newY = startCrop.y + startCrop.height - newH;
+                }
+
+                // Maintain aspect ratio
+                if (!freeAspect) {
+                    if (activeHandle === 'n' || activeHandle === 's') {
+                        newW = newH * aspectRatio;
+                        if (activeHandle === 'n') newX = startCrop.x + (startCrop.width - newW) / 2;
+                    } else if (activeHandle === 'e' || activeHandle === 'w') {
+                        newH = newW / aspectRatio;
+                        if (activeHandle === 'w') newY = startCrop.y + (startCrop.height - newH) / 2;
+                    } else {
+                        const avgDelta = (Math.abs(dx) + Math.abs(dy)) / 2;
+                        if (activeHandle.includes('e')) {
+                            newW = startCrop.width + (dx > 0 ? avgDelta : -avgDelta);
+                        } else {
+                            newW = startCrop.width + (dx < 0 ? avgDelta : -avgDelta);
+                        }
+                        newW = Math.max(minSize, newW);
+                        newH = newW / aspectRatio;
+
+                        if (activeHandle.includes('w')) newX = startCrop.x + startCrop.width - newW;
+                        if (activeHandle.includes('n')) newY = startCrop.y + startCrop.height - newH;
+                    }
+                }
+
+                // Bounds checking
+                if (newX < 0) { newW += newX; newX = 0; }
+                if (newY < 0) { newH += newY; newY = 0; }
+                if (newX + newW > currentDisplayW) newW = currentDisplayW - newX;
+                if (newY + newH > currentDisplayH) newH = currentDisplayH - newY;
+
+                if (!freeAspect) {
+                    if (newW / aspectRatio > newH) newW = newH * aspectRatio;
+                    else newH = newW / aspectRatio;
+                }
+
+                cropData = { x: newX, y: newY, width: newW, height: newH };
+            }
+
+            updateCropBoxDisplay();
+        }
+
+        function stopInteraction() {
+            isDragging = false;
+            isResizing = false;
+            activeHandle = null;
+        }
+
+        function applyCrop() {
+            if (!imageLoaded) return;
+
+            const currentDisplayW = displayWidth * zoom;
+            const scaleX = imgWidth / currentDisplayW;
+            const scaleY = imgHeight / (displayHeight * zoom);
+
+            const srcX = cropData.x * scaleX;
+            const srcY = cropData.y * scaleY;
+            const srcW = cropData.width * scaleX;
+            const srcH = cropData.height * scaleY;
+
+            const outW = parseInt(customWidth.value) || 400;
+            const outH = parseInt(customHeight.value) || 400;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = outW;
+            canvas.height = outH;
+            const ctx = canvas.getContext('2d');
+
+            // White background for JPEG
+            if (outputFormat.value === 'jpeg') {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, outW, outH);
+            }
+
+            const img = new Image();
+            img.onload = () => {
+                ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+
+                const format = outputFormat.value;
+                const quality = parseInt(qualitySlider.value) / 100;
+                const mimeType = format === 'jpeg' ? 'image/jpeg' : format === 'png' ? 'image/png' : 'image/webp';
+
+                croppedDataUrl = canvas.toDataURL(mimeType, quality);
+
+                // Show preview
+                previewImage.src = croppedDataUrl;
+                previewImage.classList.remove('hidden');
+                previewPlaceholder.classList.add('hidden');
+
+                const sizeKb = Math.round((croppedDataUrl.length * 3) / 4 / 1024);
+                previewInfo.textContent = `${outW} × ${outH} px • ${format.toUpperCase()} • ~${sizeKb} KB`;
+
+                downloadBtn.disabled = false;
+                copyDataUrlBtn.disabled = false;
+
+                // Sync to form
+                syncToForm();
+
+                showToast('Crop applied!');
+            };
+            img.src = sourceImage.src;
+        }
+
+        function syncToForm() {
+            if (!syncEnabled.checked || !croppedDataUrl) {
+                syncStatus.classList.add('hidden');
+                return;
+            }
+
+            const selector = syncSelector.value.trim();
+            if (!selector) return;
+
+            try {
+                const input = document.querySelector(selector);
+                if (input) {
+                    input.value = croppedDataUrl;
+                    syncStatus.classList.remove('hidden');
+
+                    // Update demo avatar if syncing to demo
+                    if (selector === '#demo-avatar') {
+                        const demoPreview = document.getElementById('demoAvatarPreview');
+                        const demoPlaceholder = document.getElementById('demoAvatarPlaceholder');
+                        demoPreview.src = croppedDataUrl;
+                        demoPreview.classList.remove('hidden');
+                        demoPlaceholder.classList.add('hidden');
+                    }
+
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            } catch (e) {
+                console.error('Invalid selector:', e);
+            }
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            toastMessage.textContent = message;
+            toast.className = toast.className.replace(/bg-(emerald|red)-600/g, isError ? 'bg-red-600' : 'bg-emerald-600');
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 2500);
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

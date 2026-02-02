@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Reactive Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { overflow: hidden; }
+        canvas { display: block; }
+        .control-panel {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .control-panel.hidden-panel {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+        }
+        .mode-btn {
+            transition: all 0.2s ease;
+        }
+        .mode-btn.active {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-color: #10b981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+        .freq-bar {
+            transition: height 0.05s ease-out;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse { animation: pulse 1.5s infinite; }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <canvas id="canvas"></canvas>
+
+    <!-- Start Overlay -->
+    <div id="startOverlay" class="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="text-center max-w-lg px-6">
+            <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-2xl flex items-center justify-center">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                </svg>
+            </div>
+            <h1 class="text-3xl font-bold mb-3 bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                Audio Reactive Visualizer
+            </h1>
+            <p class="text-slate-400 mb-8">
+                Experience real-time visualizations that respond to sound. 
+                Grant microphone access to begin the audio-reactive experience.
+            </p>
+            <button id="startBtn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-semibold py-4 px-10 rounded-xl text-lg transition-all hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/30">
+                Enable Microphone & Start
+            </button>
+            <p class="text-xs text-slate-600 mt-4">Audio is processed locally and never leaves your device</p>
+        </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div id="controlPanel" class="control-panel hidden-panel fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 to-transparent z-40">
+        <div class="max-w-4xl mx-auto">
+            <!-- Frequency Meters -->
+            <div class="flex items-end justify-center gap-1 h-12 mb-4">
+                <div class="flex items-end gap-0.5">
+                    <div id="bassBar" class="freq-bar w-3 bg-gradient-to-t from-red-500 to-orange-400 rounded-t" style="height: 10%"></div>
+                    <div id="midBar" class="freq-bar w-3 bg-gradient-to-t from-yellow-500 to-green-400 rounded-t" style="height: 10%"></div>
+                    <div id="highBar" class="freq-bar w-3 bg-gradient-to-t from-cyan-500 to-blue-400 rounded-t" style="height: 10%"></div>
+                </div>
+                <span id="beatIndicator" class="ml-3 w-3 h-3 rounded-full bg-slate-700 transition-all duration-75"></span>
+            </div>
+
+            <!-- Mode Buttons -->
+            <div class="flex flex-wrap justify-center gap-2 mb-4">
+                <button data-mode="plasma" class="mode-btn active px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-700/80">
+                    Plasma
+                </button>
+                <button data-mode="particles" class="mode-btn px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-700/80">
+                    Particles
+                </button>
+                <button data-mode="tunnel" class="mode-btn px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-700/80">
+                    Tunnel
+                </button>
+                <button data-mode="kaleidoscope" class="mode-btn px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-700/80">
+                    Kaleidoscope
+                </button>
+                <button data-mode="matrix" class="mode-btn px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-700/80">
+                    Matrix
+                </button>
+                <button data-mode="terrain" class="mode-btn px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-700/80">
+                    Terrain
+                </button>
+                <button data-mode="fire" class="mode-btn px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-700/80">
+                    Fire
+                </button>
+                <button data-mode="starfield" class="mode-btn px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-700/80">
+                    Starfield
+                </button>
+                <button data-mode="sequence" class="mode-btn px-4 py-2 bg-slate-800/80 border border-purple-700 rounded-lg text-sm font-medium hover:bg-slate-700/80 text-purple-400">
+                    ▶ Sequence
+                </button>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex justify-center gap-4">
+                <button id="fullscreenBtn" class="flex items-center gap-2 px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm hover:bg-slate-700/80">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                    </svg>
+                    Fullscreen
+                </button>
+                <button id="hideUIBtn" class="flex items-center gap-2 px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-lg text-sm hover:bg-slate-700/80">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                    </svg>
+                    Hide UI (H)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden UI hint -->
+    <div id="showUIHint" class="fixed bottom-4 left-1/2 -translate-x-1/2 text-slate-600 text-sm opacity-0 transition-opacity z-30">
+        Press H or move mouse to show controls
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startOverlay = document.getElementById('startOverlay');
+        const startBtn = document.getElementById('startBtn');
+        const controlPanel = document.getElementById('controlPanel');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const hideUIBtn = document.getElementById('hideUIBtn');
+        const showUIHint = document.getElementById('showUIHint');
+        const beatIndicator = document.getElementById('beatIndicator');
+
+        let audioContext, analyser, dataArray, source;
+        let isRunning = false;
+        let currentMode = 'plasma';
+        let isSequenceMode = false;
+        let sequenceTimer = 0;
+        let sequenceInterval = 10000;
+        let uiHidden = false;
+        let lastMouseMove = Date.now();
+        let time = 0;
+
+        // Frequency data
+        let bass = 0, mid = 0, high = 0, average = 0;
+        let lastBass = 0, beatThreshold = 0.15, isBeat = false;
+        let beatFlash = 0;
+
+        // Visualization states
+        let particles = [];
+        let matrixDrops = [];
+        let stars = [];
+        let fireBuffer = [];
+        let terrainOffset = 0;
+
+        const modes = ['plasma', 'particles', 'tunnel', 'kaleidoscope', 'matrix', 'terrain', 'fire', 'starfield'];
+
+        // Resize canvas
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initVisualizations();
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Initialize visualizations
+        function initVisualizations() {
+            // Particles
+            particles = [];
+            for (let i = 0; i < 300; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    size: Math.random() * 3 + 1,
+                    hue: Math.random() * 360
+                });
+            }
+
+            // Matrix rain
+            const cols = Math.ceil(canvas.width / 20);
+            matrixDrops = [];
+            for (let i = 0; i < cols; i++) {
+                matrixDrops.push({
+                    x: i * 20,
+                    y: Math.random() * canvas.height,
+                    speed: Math.random() * 5 + 3,
+                    chars: []
+                });
+                for (let j = 0; j < 30; j++) {
+                    matrixDrops[i].chars.push(String.fromCharCode(0x30A0 + Math.random() * 96));
+                }
+            }
+
+            // Stars
+            stars = [];
+            for (let i = 0; i < 500; i++) {
+                stars.push({
+                    x: (Math.random() - 0.5) * canvas.width * 2,
+                    y: (Math.random() - 0.5) * canvas.height * 2,
+                    z: Math.random() * canvas.width
+                });
+            }
+
+            // Fire buffer
+            fireBuffer = [];
+            for (let i = 0; i < canvas.width * canvas.height; i++) {
+                fireBuffer.push(0);
+            }
+        }
+
+        // Start audio
+        startBtn.addEventListener('click', async () => {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                analyser.smoothingTimeConstant = 0.8;
+
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                source = audioContext.createMediaStreamSource(stream);
+                source.connect(analyser);
+
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+                startOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    startOverlay.style.display = 'none';
+                    controlPanel.classList.remove('hidden-panel');
+                }, 300);
+
+                isRunning = true;
+                animate();
+            } catch (err) {
+                alert('Microphone access denied. Please allow microphone access to use the visualizer.');
+            }
+        });
+
+        // Analyze audio
+        function analyzeAudio() {
+            if (!analyser) return;
+            analyser.getByteFrequencyData(dataArray);
+
+            const len = dataArray.length;
+            const bassEnd = Math.floor(len * 0.1);
+            const midEnd = Math.floor(len * 0.5);
+
+            let bassSum = 0, midSum = 0, highSum = 0;
+            for (let i = 0; i < bassEnd; i++) bassSum += dataArray[i];
+            for (let i = bassEnd; i < midEnd; i++) midSum += dataArray[i];
+            for (let i = midEnd; i < len; i++) highSum += dataArray[i];
+
+            bass = bassSum / (bassEnd * 255);
+            mid = midSum / ((midEnd - bassEnd) * 255);
+            high = highSum / ((len - midEnd) * 255);
+            average = (bass + mid + high) / 3;
+
+            // Beat detection
+            isBeat = bass - lastBass > beatThreshold && bass > 0.3;
+            if (isBeat) beatFlash = 1;
+            lastBass = bass;
+            beatFlash *= 0.9;
+
+            // Update UI
+            document.getElementById('bassBar').style.height = `${bass * 100}%`;
+            document.getElementById('midBar').style.height = `${mid * 100}%`;
+            document.getElementById('highBar').style.height = `${high * 100}%`;
+            beatIndicator.style.backgroundColor = isBeat ? '#10b981' : '#334155';
+            beatIndicator.style.boxShadow = isBeat ? '0 0 10px #10b981' : 'none';
+        }
+
+        // Main animation loop
+        function animate() {
+            if (!isRunning) return;
+            requestAnimationFrame(animate);
+
+            time += 0.016;
+            analyzeAudio();
+
+            // Sequence mode
+            if (isSequenceMode) {
+                sequenceTimer += 16;
+                if (sequenceTimer >= sequenceInterval) {
+                    sequenceTimer = 0;
+                    const currentIdx = modes.indexOf(currentMode);
+                    currentMode = modes[(currentIdx + 1) % modes.length];
+                    updateModeButtons();
+                }
+            }
+
+            // Clear with fade
+            ctx.fillStyle = `rgba(0, 0, 0, ${currentMode === 'matrix' ? 0.05 : 0.1})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Beat flash overlay
+            if (beatFlash > 0.1) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${beatFlash * 0.1})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Render current mode
+            switch (currentMode) {
+                case 'plasma': renderPlasma(); break;
+                case 'particles': renderParticles(); break;
+                case 'tunnel': renderTunnel(); break;
+                case 'kaleidoscope': renderKaleidoscope(); break;
+                case 'matrix': renderMatrix(); break;
+                case 'terrain': renderTerrain(); break;
+                case 'fire': renderFire(); break;
+                case 'starfield': renderStarfield(); break;
+            }
+        }
+
+        // PLASMA
+        function renderPlasma() {
+            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            const data = imageData.data;
+            const intensity = 1 + average * 3;
+
+            for (let y = 0; y < canvas.height; y += 4) {
+                for (let x = 0; x < canvas.width; x += 4) {
+                    const v1 = Math.sin((x * 0.01 + time * intensity) + bass * 5);
+                    const v2 = Math.sin((y * 0.01 + time * intensity) + mid * 5);
+                    const v3 = Math.sin((x * 0.01 + y * 0.01 + time) * intensity);
+                    const v = (v1 + v2 + v3) / 3;
+
+                    const r = Math.sin(v * Math.PI + time) * 127 + 128;
+                    const g = Math.sin(v * Math.PI + time + 2) * 127 + 128;
+                    const b = Math.sin(v * Math.PI + time + 4) * 127 + 128;
+
+                    for (let dy = 0; dy < 4; dy++) {
+                        for (let dx = 0; dx < 4; dx++) {
+                            const idx = ((y + dy) * canvas.width + (x + dx)) * 4;
+                            data[idx] = r;
+                            data[idx + 1] = g;
+                            data[idx + 2] = b;
+                            data[idx + 3] = 255;
+                        }
+                    }
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // PARTICLES
+        function renderParticles() {
+            const speed = 1 + average * 5;
+            particles.forEach(p => {
+                p.x += p.vx * speed;
+                p.y += p.vy * speed + bass * 10;
+                p.hue += high * 10;
+
+                if (p.x < 0) p.x = canvas.width;
+                if (p.x > canvas.width) p.x = 0;
+                if (p.y < 0) p.y = canvas.height;
+                if (p.y > canvas.height) p.y = 0;
+
+                const size = p.size * (1 + bass * 3);
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${p.hue % 360}, 80%, 60%, ${0.5 + average * 0.5})`;
+                ctx.fill();
+            });
+
+            // Connect nearby particles
+            if (mid > 0.2) {
+                for (let i = 0; i < particles.length; i += 5) {
+                    for (let j = i + 1; j < particles.length; j += 5) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 100) {
+                            ctx.beginPath();
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.strokeStyle = `hsla(${particles[i].hue % 360}, 70%, 50%, ${(1 - dist / 100) * mid})`;
+                            ctx.stroke();
+                        }
+                    }
+                }
+            }
+        }
+
+        // TUNNEL
+        function renderTunnel() {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const speed = time * (1 + bass * 2);
+
+            for (let i = 0; i < 30; i++) {
+                const radius = (i * 30 + speed * 50) % (Math.max(cx, cy) * 1.5);
+                const hue = (i * 12 + time * 50) % 360;
+                const alpha = 1 - radius / (Math.max(cx, cy) * 1.5);
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius * (1 + mid * 0.5), 0, Math.PI * 2);
+                ctx.strokeStyle = `hsla(${hue}, 80%, 50%, ${alpha * (0.3 + high * 0.7)})`;
+                ctx.lineWidth = 2 + bass * 5;
+                ctx.stroke();
+            }
+
+            // Center glow
+            const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, 100 + bass * 100);
+            gradient.addColorStop(0, `hsla(${time * 50 % 360}, 100%, 70%, ${0.5 + beatFlash})`);
+            gradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // KALEIDOSCOPE
+        function renderKaleidoscope() {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const segments = 8;
+            const angleStep = (Math.PI * 2) / segments;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            for (let s = 0; s < segments; s++) {
+                ctx.save();
+                ctx.rotate(angleStep * s + time * (0.2 + bass * 0.5));
+
+                for (let i = 0; i < 10; i++) {
+                    const dist = 50 + i * 30 + Math.sin(time * 2 + i) * 20 * mid;
+                    const size = 10 + bass * 30 + Math.sin(time + i) * 10;
+                    const hue = (time * 30 + i * 36 + s * 45) % 360;
+
+                    ctx.beginPath();
+                    ctx.arc(dist, 0, size, 0, Math.PI * 2);
+                    ctx.fillStyle = `hsla(${hue}, 80%, 50%, ${0.4 + high * 0.6})`;
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
+
+        // MATRIX
+        function renderMatrix() {
+            ctx.font = '16px monospace';
+            const speed = 1 + bass * 3;
+
+            matrixDrops.forEach(drop => {
+                drop.y += drop.speed * speed;
+                if (drop.y > canvas.height + 300) {
+                    drop.y = -300;
+                    drop.speed = Math.random() * 5 + 3;
+                }
+
+                drop.chars.forEach((char, i) => {
+                    const y = drop.y - i * 20;
+                    if (y > 0 && y < canvas.height) {
+                        const alpha = 1 - i / drop.chars.length;
+                        const brightness = i === 0 ? 100 : 50 + mid * 30;
+                        ctx.fillStyle = `hsla(120, 100%, ${brightness}%, ${alpha * (0.5 + high * 0.5)})`;
+                        ctx.fillText(char, drop.x, y);
+                    }
+                });
+
+                if (Math.random() < 0.02) {
+                    const idx = Math.floor(Math.random() * drop.chars.length);
+                    drop.chars[idx] = String.fromCharCode(0x30A0 + Math.random() * 96);
+                }
+            });
+        }
+
+        // TERRAIN
+        function renderTerrain() {
+            terrainOffset += 2 + bass * 10;
+            const rows = 30;
+            const cols = 40;
+            const cellW = canvas.width / (cols - 1);
+            const cellH = canvas.height / rows;
+
+            for (let y = 0; y < rows; y++) {
+                const points = [];
+                const depth = y / rows;
+
+                for (let x = 0; x <= cols; x++) {
+                    const nx = x / cols;
+                    const height = Math.sin(nx * 5 + terrainOffset * 0.02) * 50 +
+                                   Math.sin(nx * 10 + time) * 30 * mid +
+                                   Math.cos(terrainOffset * 0.01 + nx * 3) * 40 * bass;
+
+                    const px = x * cellW;
+                    const py = canvas.height * 0.8 - y * cellH * 0.7 - height * depth;
+                    points.push({ x: px, y: py });
+                }
+
+                if (y > 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(points[0].x, points[0].y);
+                    points.forEach(p => ctx.lineTo(p.x, p.y));
+                    ctx.lineTo(canvas.width, canvas.height);
+                    ctx.lineTo(0, canvas.height);
+                    ctx.closePath();
+
+                    const hue = (200 + depth * 60 + time * 10) % 360;
+                    ctx.fillStyle = `hsla(${hue}, 60%, ${20 + depth * 30}%, ${0.3 + depth * 0.7})`;
+                    ctx.fill();
+                    ctx.strokeStyle = `hsla(${hue}, 80%, 50%, ${depth * (0.3 + high * 0.7)})`;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // FIRE
+        function renderFire() {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Add heat at bottom
+            for (let x = 0; x < w; x++) {
+                if (Math.random() < 0.5 + bass * 0.5) {
+                    fireBuffer[(h - 1) * w + x] = Math.random() * 255 * (0.5 + average);
+                }
+            }
+
+            // Propagate heat upward
+            for (let y = 0; y < h - 1; y++) {
+                for (let x = 0; x < w; x++) {
+                    const idx = y * w + x;
+                    const below = ((y + 1) * w + x);
+                    const left = below - 1;
+                    const right = below + 1;
+
+                    const heat = (
+                        fireBuffer[below] +
+                        fireBuffer[Math.max(0, left)] +
+                        fireBuffer[Math.min(w - 1, right)] +
+                        fireBuffer[Math.min((h - 1) * w + x, (y + 2) * w + x)]
+                    ) / 4.05;
+
+                    fireBuffer[idx] = Math.max(0, heat);
+                }
+            }
+
+            // Render
+            const imageData = ctx.createImageData(w, h);
+            const data = imageData.data;
+
+            for (let i = 0; i < fireBuffer.length; i++) {
+                const v = fireBuffer[i];
+                const idx = i * 4;
+                data[idx] = Math.min(255, v * 1.5);
+                data[idx + 1] = v * 0.5;
+                data[idx + 2] = v * 0.2;
+                data[idx + 3] = Math.min(255, v * 2);
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // STARFIELD
+        function renderStarfield() {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const speed = 5 + bass * 20;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            stars.forEach(star => {
+                star.z -= speed;
+                if (star.z <= 0) {
+                    star.x = (Math.random() - 0.5) * canvas.width * 2;
+                    star.y = (Math.random() - 0.5) * canvas.height * 2;
+                    star.z = canvas.width;
+                }
+
+                const sx = (star.x / star.z) * canvas.width + cx;
+                const sy = (star.y / star.z) * canvas.height + cy;
+                const size = (1 - star.z / canvas.width) * 4 * (1 + mid);
+
+                if (sx > 0 && sx < canvas.width && sy > 0 && sy < canvas.height) {
+                    const hue = (time * 20 + star.z * 0.5) % 360;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, size, 0, Math.PI * 2);
+                    ctx.fillStyle = `hsla(${hue}, ${50 + high * 50}%, 70%, ${1 - star.z / canvas.width})`;
+                    ctx.fill();
+
+                    // Trail
+                    if (speed > 10) {
+                        const prevSx = (star.x / (star.z + speed)) * canvas.width + cx;
+                        const prevSy = (star.y / (star.z + speed)) * canvas.height + cy;
+                        ctx.beginPath();
+                        ctx.moveTo(sx, sy);
+                        ctx.lineTo(prevSx, prevSy);
+                        ctx.strokeStyle = `hsla(${hue}, 80%, 70%, ${(1 - star.z / canvas.width) * 0.5})`;
+                        ctx.lineWidth = size * 0.5;
+                        ctx.stroke();
+                    }
+                }
+            });
+        }
+
+        // Mode selection
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                if (mode === 'sequence') {
+                    isSequenceMode = !isSequenceMode;
+                    sequenceTimer = 0;
+                    btn.classList.toggle('active', isSequenceMode);
+                } else {
+                    isSequenceMode = false;
+                    currentMode = mode;
+                    document.querySelector('[data-mode="sequence"]').classList.remove('active');
+                }
+                updateModeButtons();
+            });
+        });
+
+        function updateModeButtons() {
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                if (btn.dataset.mode !== 'sequence') {
+                    btn.classList.toggle('active', btn.dataset.mode === currentMode);
+                }
+            });
+        }
+
+        // Fullscreen
+        fullscreenBtn.addEventListener('click', () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.documentElement.requestFullscreen();
+            }
+        });
+
+        // Hide UI
+        function toggleUI(show) {
+            uiHidden = !show;
+            controlPanel.classList.toggle('hidden-panel', uiHidden);
+            showUIHint.style.opacity = uiHidden ? '1' : '0';
+        }
+
+        hideUIBtn.addEventListener('click', () => toggleUI(false));
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'h') toggleUI(uiHidden);
+            if (e.key >= '1' && e.key <= '8') {
+                currentMode = modes[parseInt(e.key) - 1];
+                isSequenceMode = false;
+                document.querySelector('[data-mode="sequence"]').classList.remove('active');
+                updateModeButtons();
+            }
+            if (e.key === '0') {
+                isSequenceMode = !isSequenceMode;
+                document.querySelector('[data-mode="sequence"]').classList.toggle('active', isSequenceMode);
+            }
+        });
+
+        document.addEventListener('mousemove', () => {
+            lastMouseMove = Date.now();
+            if (uiHidden) toggleUI(true);
+        });
+
+        // Auto-hide UI after inactivity
+        setInterval(() => {
+            if (!uiHidden && Date.now() - lastMouseMove > 5000) {
+                toggleUI(false);
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

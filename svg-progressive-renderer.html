@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Progressive Renderer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .code-editor {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            tab-size: 2;
+        }
+        .code-editor::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .code-editor::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .code-editor::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        .svg-preview svg {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .progress-glow {
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+        }
+        @keyframes cursor-blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        .typing-cursor::after {
+            content: '▋';
+            animation: cursor-blink 1s infinite;
+            color: #a78bfa;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent mb-3">
+                SVG Progressive Renderer
+            </h1>
+            <p class="text-slate-400 max-w-2xl mx-auto">
+                Watch SVG content draw itself character by character. Paste your SVG, set the duration, and see the magic unfold.
+            </p>
+        </header>
+
+        <!-- Input Section -->
+        <div id="inputSection" class="mb-8">
+            <div class="bg-slate-800/50 rounded-2xl p-6 border border-slate-700">
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <!-- SVG Input -->
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Paste SVG Code</label>
+                        <textarea 
+                            id="svgInput" 
+                            class="code-editor w-full h-64 bg-slate-900 border border-slate-600 rounded-xl p-4 text-slate-300 placeholder-slate-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                            placeholder="<svg viewBox=&quot;0 0 100 100&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;>
+  <circle cx=&quot;50&quot; cy=&quot;50&quot; r=&quot;40&quot; fill=&quot;#6366f1&quot;/>
+  <path d=&quot;M30 50 L45 65 L70 35&quot; stroke=&quot;white&quot; stroke-width=&quot;6&quot; fill=&quot;none&quot;/>
+</svg>"
+                        ></textarea>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="lg:w-72 flex flex-col gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Animation Duration</label>
+                            <div class="flex items-center gap-3">
+                                <input 
+                                    type="range" 
+                                    id="durationSlider" 
+                                    min="1" 
+                                    max="30" 
+                                    value="5" 
+                                    class="flex-1 accent-purple-500"
+                                >
+                                <div class="bg-slate-700 rounded-lg px-3 py-2 min-w-[70px] text-center">
+                                    <span id="durationValue" class="text-purple-400 font-mono font-bold">5</span>
+                                    <span class="text-slate-500 text-sm">s</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Speed Preset</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button data-duration="2" class="speed-preset px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors">Fast</button>
+                                <button data-duration="5" class="speed-preset px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm transition-colors">Normal</button>
+                                <button data-duration="15" class="speed-preset px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors">Slow</button>
+                            </div>
+                        </div>
+
+                        <div class="flex-1"></div>
+
+                        <button 
+                            id="renderBtn" 
+                            class="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-semibold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-purple-500/25"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Render Animation
+                        </button>
+
+                        <button 
+                            id="loadSampleBtn" 
+                            class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-xl transition-colors text-sm"
+                        >
+                            Load Sample SVG
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Animation Section -->
+        <div id="animationSection" class="hidden">
+            <!-- Progress Bar -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between text-sm text-slate-400 mb-2">
+                    <span>Progress</span>
+                    <span><span id="charCount">0</span> / <span id="totalChars">0</span> characters</span>
+                </div>
+                <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div id="progressBar" class="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 rounded-full transition-all duration-100 progress-glow" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Preview Grid -->
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+                <!-- SVG Preview -->
+                <div class="bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-700">
+                    <div class="bg-slate-700/50 px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+                        <h3 class="font-medium text-slate-300 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            Live Preview
+                        </h3>
+                        <span id="renderStatus" class="text-xs text-purple-400">Rendering...</span>
+                    </div>
+                    <div id="svgPreview" class="svg-preview p-6 min-h-[400px] flex items-center justify-center bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMjIyIi8+PHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiMyMjIiLz48cmVjdCB4PSIxMCIgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMmEyYTJhIi8+PHJlY3QgeT0iMTAiIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCIgZmlsbD0iIzJhMmEyYSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')]">
+                        <p class="text-slate-600">Preview will appear here</p>
+                    </div>
+                </div>
+
+                <!-- Live Code Editor -->
+                <div class="bg-slate-800/50 rounded-2xl overflow-hidden border border-slate-700">
+                    <div class="bg-slate-700/50 px-4 py-3 border-b border-slate-700 flex items-center justify-between">
+                        <h3 class="font-medium text-slate-300">Live Code</h3>
+                        <div class="flex items-center gap-2">
+                            <span id="codeLength" class="text-xs text-slate-500 font-mono">0 chars</span>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <pre id="liveCode" class="code-editor p-4 min-h-[400px] max-h-[400px] overflow-auto text-green-400 bg-slate-900/50 m-0 whitespace-pre-wrap break-all"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control Buttons -->
+            <div class="flex flex-wrap gap-4">
+                <button id="pauseBtn" class="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-medium py-3 px-6 rounded-xl transition-colors">
+                    <svg id="pauseIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span id="pauseText">Pause</span>
+                </button>
+                <button id="restartBtn" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-xl transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Restart
+                </button>
+                <button id="skipBtn" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-xl transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+                    </svg>
+                    Skip to End
+                </button>
+                <button id="newSvgBtn" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-medium py-3 px-6 rounded-xl transition-colors ml-auto">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    New SVG
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const svgInput = document.getElementById('svgInput');
+        const durationSlider = document.getElementById('durationSlider');
+        const durationValue = document.getElementById('durationValue');
+        const renderBtn = document.getElementById('renderBtn');
+        const loadSampleBtn = document.getElementById('loadSampleBtn');
+        const inputSection = document.getElementById('inputSection');
+        const animationSection = document.getElementById('animationSection');
+        const svgPreview = document.getElementById('svgPreview');
+        const liveCode = document.getElementById('liveCode');
+        const progressBar = document.getElementById('progressBar');
+        const charCount = document.getElementById('charCount');
+        const totalChars = document.getElementById('totalChars');
+        const codeLength = document.getElementById('codeLength');
+        const renderStatus = document.getElementById('renderStatus');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const pauseText = document.getElementById('pauseText');
+        const restartBtn = document.getElementById('restartBtn');
+        const skipBtn = document.getElementById('skipBtn');
+        const newSvgBtn = document.getElementById('newSvgBtn');
+        const speedPresets = document.querySelectorAll('.speed-preset');
+
+        let animationId = null;
+        let isPaused = false;
+        let currentIndex = 0;
+        let svgContent = '';
+        let startTime = 0;
+        let pausedTime = 0;
+        let duration = 5000;
+
+        const sampleSVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="80" fill="url(#grad1)" opacity="0.9"/>
+  <circle cx="100" cy="100" r="60" fill="none" stroke="white" stroke-width="2" stroke-dasharray="10,5"/>
+  <polygon points="100,40 130,90 100,80 70,90" fill="white" opacity="0.9"/>
+  <polygon points="100,160 130,110 100,120 70,110" fill="white" opacity="0.9"/>
+  <circle cx="100" cy="100" r="15" fill="white"/>
+  <circle cx="100" cy="100" r="8" fill="#6366f1"/>
+</svg>`;
+
+        durationSlider.addEventListener('input', () => {
+            durationValue.textContent = durationSlider.value;
+            updateSpeedPresetUI();
+        });
+
+        speedPresets.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const dur = parseInt(btn.dataset.duration);
+                durationSlider.value = dur;
+                durationValue.textContent = dur;
+                updateSpeedPresetUI();
+            });
+        });
+
+        function updateSpeedPresetUI() {
+            const currentDur = parseInt(durationSlider.value);
+            speedPresets.forEach(btn => {
+                const btnDur = parseInt(btn.dataset.duration);
+                if (btnDur === currentDur) {
+                    btn.classList.remove('bg-slate-700', 'hover:bg-slate-600');
+                    btn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+                } else {
+                    btn.classList.add('bg-slate-700', 'hover:bg-slate-600');
+                    btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+                }
+            });
+        }
+
+        loadSampleBtn.addEventListener('click', () => {
+            svgInput.value = sampleSVG;
+        });
+
+        renderBtn.addEventListener('click', startAnimation);
+        restartBtn.addEventListener('click', restartAnimation);
+        skipBtn.addEventListener('click', skipToEnd);
+        newSvgBtn.addEventListener('click', resetToInput);
+
+        pauseBtn.addEventListener('click', () => {
+            if (isPaused) {
+                resumeAnimation();
+            } else {
+                pauseAnimation();
+            }
+        });
+
+        function startAnimation() {
+            svgContent = svgInput.value.trim();
+            if (!svgContent) {
+                alert('Please paste SVG code first');
+                return;
+            }
+
+            duration = parseInt(durationSlider.value) * 1000;
+            currentIndex = 0;
+            isPaused = false;
+            pausedTime = 0;
+
+            inputSection.classList.add('hidden');
+            animationSection.classList.remove('hidden');
+
+            totalChars.textContent = svgContent.length;
+            updatePauseButton();
+
+            startTime = performance.now();
+            animate();
+        }
+
+        function animate() {
+            if (isPaused) return;
+
+            const elapsed = performance.now() - startTime - pausedTime;
+            const progress = Math.min(elapsed / duration, 1);
+            currentIndex = Math.floor(progress * svgContent.length);
+
+            updateDisplay();
+
+            if (currentIndex < svgContent.length) {
+                animationId = requestAnimationFrame(animate);
+            } else {
+                renderStatus.textContent = 'Complete!';
+                renderStatus.classList.remove('text-purple-400');
+                renderStatus.classList.add('text-green-400');
+            }
+        }
+
+        function updateDisplay() {
+            const partialSvg = svgContent.substring(0, currentIndex);
+            const completedSvg = autoCompleteSvg(partialSvg);
+
+            charCount.textContent = currentIndex;
+            codeLength.textContent = `${currentIndex} chars`;
+            progressBar.style.width = `${(currentIndex / svgContent.length) * 100}%`;
+
+            liveCode.innerHTML = escapeHtml(partialSvg) + '<span class="typing-cursor"></span>';
+            liveCode.scrollTop = liveCode.scrollHeight;
+
+            try {
+                svgPreview.innerHTML = completedSvg;
+            } catch (e) {
+                // Invalid SVG, skip rendering
+            }
+        }
+
+        function autoCompleteSvg(partial) {
+            if (!partial.trim()) return '';
+
+            let result = partial;
+            const openTags = [];
+            const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*\/?>/g;
+            const selfClosingTags = ['circle', 'rect', 'line', 'polyline', 'polygon', 'path', 'ellipse', 'image', 'use', 'stop', 'animate', 'animateTransform', 'animateMotion', 'set', 'mpath'];
+
+            // Check if we're in the middle of a tag
+            const lastLt = partial.lastIndexOf('<');
+            const lastGt = partial.lastIndexOf('>');
+            
+            if (lastLt > lastGt) {
+                // We're inside an unclosed tag
+                const partialTag = partial.substring(lastLt);
+                
+                // Try to close the current tag
+                if (partialTag.startsWith('</')) {
+                    // Closing tag - find what it's trying to close
+                    const match = partialTag.match(/<\/([a-zA-Z][a-zA-Z0-9]*)/);
+                    if (match) {
+                        result += '>';
+                    } else {
+                        result = partial.substring(0, lastLt);
+                    }
+                } else {
+                    // Opening tag
+                    const tagMatch = partialTag.match(/<([a-zA-Z][a-zA-Z0-9]*)/);
+                    if (tagMatch) {
+                        const tagName = tagMatch[1].toLowerCase();
+                        
+                        // Check if we're in the middle of an attribute
+                        const inAttr = partialTag.includes('=') && 
+                            (partialTag.lastIndexOf('"') === partialTag.lastIndexOf('="') + 1 ||
+                             partialTag.lastIndexOf("'") === partialTag.lastIndexOf("='") + 1 ||
+                             partialTag.match(/=["'][^"']*$/));
+                        
+                        if (inAttr) {
+                            // Close attribute value
+                            const lastQuote = partialTag.includes('"') ? '"' : "'";
+                            if ((partialTag.match(/"/g) || []).length % 2 !== 0) {
+                                result += '"';
+                            } else if ((partialTag.match(/'/g) || []).length % 2 !== 0) {
+                                result += "'";
+                            }
+                        }
+                        
+                        if (selfClosingTags.includes(tagName)) {
+                            result += '/>';
+                        } else {
+                            result += '>';
+                        }
+                    } else {
+                        result = partial.substring(0, lastLt);
+                    }
+                }
+            }
+
+            // Now parse and find unclosed tags
+            let match;
+            const tempResult = result;
+            tagRegex.lastIndex = 0;
+            
+            while ((match = tagRegex.exec(tempResult)) !== null) {
+                const fullTag = match[0];
+                const tagName = match[1].toLowerCase();
+                
+                if (fullTag.startsWith('</')) {
+                    // Closing tag
+                    if (openTags.length > 0 && openTags[openTags.length - 1] === tagName) {
+                        openTags.pop();
+                    }
+                } else if (!fullTag.endsWith('/>') && !selfClosingTags.includes(tagName)) {
+                    // Opening tag (not self-closing)
+                    openTags.push(tagName);
+                }
+            }
+
+            // Close all remaining open tags in reverse order
+            for (let i = openTags.length - 1; i >= 0; i--) {
+                result += `</${openTags[i]}>`;
+            }
+
+            return result;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function pauseAnimation() {
+            isPaused = true;
+            pausedTime = performance.now() - startTime - pausedTime;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            updatePauseButton();
+            renderStatus.textContent = 'Paused';
+        }
+
+        function resumeAnimation() {
+            isPaused = false;
+            startTime = performance.now() - (currentIndex / svgContent.length) * duration;
+            pausedTime = 0;
+            updatePauseButton();
+            renderStatus.textContent = 'Rendering...';
+            animate();
+        }
+
+        function updatePauseButton() {
+            if (isPaused) {
+                pauseIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+                pauseText.textContent = 'Resume';
+                pauseBtn.classList.remove('bg-amber-600', 'hover:bg-amber-700');
+                pauseBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+            } else {
+                pauseIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+                pauseText.textContent = 'Pause';
+                pauseBtn.classList.add('bg-amber-600', 'hover:bg-amber-700');
+                pauseBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+            }
+        }
+
+        function restartAnimation() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            currentIndex = 0;
+            isPaused = false;
+            pausedTime = 0;
+            startTime = performance.now();
+            renderStatus.textContent = 'Rendering...';
+            renderStatus.classList.add('text-purple-400');
+            renderStatus.classList.remove('text-green-400');
+            updatePauseButton();
+            animate();
+        }
+
+        function skipToEnd() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            currentIndex = svgContent.length;
+            isPaused = false;
+            updateDisplay();
+            renderStatus.textContent = 'Complete!';
+            renderStatus.classList.remove('text-purple-400');
+            renderStatus.classList.add('text-green-400');
+        }
+
+        function resetToInput() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            inputSection.classList.remove('hidden');
+            animationSection.classList.add('hidden');
+            svgPreview.innerHTML = '<p class="text-slate-600">Preview will appear here</p>';
+            liveCode.innerHTML = '';
+            currentIndex = 0;
+            isPaused = false;
+            pausedTime = 0;
+        }
+    </script>
+</body>
+</html>
