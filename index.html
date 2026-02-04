@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Tools Collection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #e94560, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1.1rem;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .tool-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #e94560;
+            box-shadow: 0 10px 40px rgba(233, 69, 96, 0.2);
+        }
+
+        .tool-icon {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+        }
+
+        .tool-card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+
+        .tool-card p {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: #e94560;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛠️ Web Tools Collection</h1>
+            <p class="subtitle">Free browser-based tools for images, audio, and more</p>
+        </header>
+
+        <div class="tools-grid">
+            <a href="image-compressor.html" class="tool-card">
+                <div class="tool-icon">🗜️</div>
+                <h2>Image Compressor</h2>
+                <p>Compress and optimize images while maintaining quality. Reduce file sizes for faster web loading.</p>
+            </a>
+
+            <a href="image-cropper.html" class="tool-card">
+                <div class="tool-icon">✂️</div>
+                <h2>Image Cropper</h2>
+                <p>Crop and resize images with precision. Perfect for creating thumbnails and profile pictures.</p>
+            </a>
+
+            <a href="image-compare.html" class="tool-card">
+                <div class="tool-icon">🔍</div>
+                <h2>Image Compare</h2>
+                <p>Compare two images side by side with an interactive slider. Great for before/after comparisons.</p>
+            </a>
+
+            <a href="svg-to-raster-converter.html" class="tool-card">
+                <div class="tool-icon">🖼️</div>
+                <h2>SVG to Raster Converter</h2>
+                <p>Convert SVG vector graphics to PNG, JPEG, or WebP formats at any resolution.</p>
+            </a>
+
+            <a href="raster-to-svg-converter.html" class="tool-card">
+                <div class="tool-icon">✨</div>
+                <h2>Raster to SVG Converter</h2>
+                <p>Transform raster images into scalable vector graphics (SVG) format.</p>
+            </a>
+
+            <a href="svg-progressive-renderer.html" class="tool-card">
+                <div class="tool-icon">📊</div>
+                <h2>SVG Progressive Renderer</h2>
+                <p>Render SVG files progressively for better performance with large graphics.</p>
+            </a>
+
+            <a href="bounding-box-tool.html" class="tool-card">
+                <div class="tool-icon">📐</div>
+                <h2>Bounding Box Tool</h2>
+                <p>Draw and measure bounding boxes on images. Useful for ML annotation and design work.</p>
+            </a>
+
+            <a href="exif-orientation-reader.html" class="tool-card">
+                <div class="tool-icon">🧭</div>
+                <h2>EXIF Orientation Reader</h2>
+                <p>Read and analyze EXIF metadata from images including orientation data.</p>
+            </a>
+
+            <a href="ffmpeg-crop-generator.html" class="tool-card">
+                <div class="tool-icon">🎬</div>
+                <h2>FFmpeg Crop Generator</h2>
+                <p>Generate FFmpeg crop commands visually. Select crop area and get the command instantly.</p>
+            </a>
+
+            <a href="audio-visualizer.html" class="tool-card">
+                <div class="tool-icon">🎵</div>
+                <h2>Audio Visualizer</h2>
+                <p>Visualize audio files with beautiful waveforms and frequency displays.</p>
+            </a>
+
+            <a href="youtube-thumbnail-viewer.html" class="tool-card">
+                <div class="tool-icon">▶️</div>
+                <h2>YouTube Thumbnail Viewer</h2>
+                <p>View and download YouTube video thumbnails in all available resolutions.</p>
+            </a>
+
+            <a href="social-media-card-creator.html" class="tool-card">
+                <div class="tool-icon">📱</div>
+                <h2>Social Media Card Creator</h2>
+                <p>Create beautiful social media cards and Open Graph images for your content.</p>
+            </a>
+        </div>
+
+        <footer>
+            <p>Made with ❤️ | <a href="https://github.com/geniussau/tools" target="_blank">View on GitHub</a></p>
+        </footer>
+    </div>
+</body>
+</html>
